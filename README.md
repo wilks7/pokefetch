@@ -19,7 +19,7 @@ Easily configurable padding. Even special forms of Pokémon are available
 You can customize the following inside the script:
 
 ```bash
-POKEMON_LIST=(victini "mimikyu -s" celebi furret "mewtwo --mega-y")
+POKEMON_LIST=(victini "mimikyu -s" celebi furret "mewtwo --mega-y") # just my favs
 FETCHER="fastfetch" # only neofetch is currently supported
 
 EXTRA_PADDING_H=2
