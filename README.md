@@ -1,7 +1,7 @@
 # Pokefetch  
 **by discomanfulanito — for everyone, as code should be**
 
-This script fetches a random Pokémon sprite and displays it alongside system info using a fetcher (currently only works with `neofetch`). Sprites are dynamically centered for clean terminal aesthetics.
+This script fetches a random Pokémon sprite and displays it alongside system info using a fetcher (currently only works with `fastfetch`). Sprites are dynamically centered for clean terminal aesthetics.
 Easily configurable padding. Even special forms of Pokémon are available
 
 ---
