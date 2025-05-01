@@ -24,7 +24,7 @@ You can customize the following inside the script:
 
 ```bash
 POKEMON_LIST=(victini "mimikyu -s" celebi furret "mewtwo --mega-y") # just my favs
-FETCHER="fastfetch" # only neofetch is currently supported
+FETCHER="fastfetch" # only fastfetch is currently supported
 
 EXTRA_PADDING_H=2
 EXTRA_PADDING_W=0
