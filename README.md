@@ -3,6 +3,10 @@
 
 This script fetches a random Pokémon sprite and displays it alongside system info using a fetcher (currently only works with `fastfetch`). Sprites are dynamically centered for clean terminal aesthetics.
 Easily configurable padding. Even special forms of Pokémon are available
+![image](https://github.com/user-attachments/assets/d84a5588-2287-4ec9-b797-abf9bcdbca88)
+
+
+![image](https://github.com/user-attachments/assets/fbb8cb29-cd1c-4d90-9fe8-88d5ef49fdb6)
 
 ---
 
