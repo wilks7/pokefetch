@@ -70,14 +70,16 @@ renderings, while Gen III's normal front sprites already contain alpha. Back,
 shiny, gray, and opaque originals are intentionally shelved.
 
 `bundle-assets` reads `POKEFETCH_BUNDLE` at build time and generates a compact,
-sorted runtime index. Configuration selects the game and variant independently:
+sorted runtime index. Configuration selects the game and variant independently.
+Use `game = "random"` to choose among the games present in the compiled bundle;
+Pokefetch then limits random Pokemon selection to sprites present in that game:
 
 ```toml
 [sprites]
-game = "crystal"
+game = "random"
 variant = "front"
-range_start = 152
-range_end = 251
+range_start = 1
+range_end = 386
 ```
 
 The legacy `variant = "red-blue"` configuration and `bundle-gen1` Cargo

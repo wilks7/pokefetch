@@ -16,9 +16,17 @@ impl Pokemon {
 }
 
 pub fn resolve(selector: Option<&str>, config: &SpriteConfig) -> Result<Pokemon> {
+    resolve_available(selector, config, |_| true)
+}
+
+pub fn resolve_available(
+    selector: Option<&str>,
+    config: &SpriteConfig,
+    mut available: impl FnMut(u16) -> bool,
+) -> Result<Pokemon> {
     let selector = selector.map(str::trim).filter(|value| !value.is_empty());
     if selector.is_none() || selector == Some("random") {
-        return Ok(from_id(random_id(config)));
+        return Ok(from_id(random_id(config, &mut available)?));
     }
 
     let selector = selector.expect("checked above");
@@ -53,13 +61,30 @@ pub fn resolve(selector: Option<&str>, config: &SpriteConfig) -> Result<Pokemon>
     bail!("unknown Pokemon {selector:?}; use a name, numeric id, or 'random'")
 }
 
-fn random_id(config: &SpriteConfig) -> u16 {
-    if !config.pokemon.is_empty() {
-        let index = rand::rng().random_range(0..config.pokemon.len());
-        config.pokemon[index]
+pub fn is_random_selector(selector: Option<&str>) -> bool {
+    selector
+        .map(str::trim)
+        .is_none_or(|value| value.is_empty() || value == "random")
+}
+
+fn random_id(config: &SpriteConfig, available: &mut impl FnMut(u16) -> bool) -> Result<u16> {
+    let candidates = if !config.pokemon.is_empty() {
+        config
+            .pokemon
+            .iter()
+            .copied()
+            .filter(|id| available(*id))
+            .collect::<Vec<_>>()
     } else {
-        rand::rng().random_range(config.range_start..=config.range_end)
+        (config.range_start..=config.range_end)
+            .filter(|id| available(*id))
+            .collect::<Vec<_>>()
+    };
+    if candidates.is_empty() {
+        bail!("no Pokemon in the configured selection have a bundled sprite");
     }
+    let index = rand::rng().random_range(0..candidates.len());
+    Ok(candidates[index])
 }
 
 fn from_id(id: u16) -> Pokemon {
@@ -474,7 +499,7 @@ const NAMES: [&str; 386] = [
 
 #[cfg(test)]
 mod tests {
-    use super::resolve;
+    use super::{resolve, resolve_available};
     use crate::config::SpriteConfig;
 
     #[test]
@@ -496,5 +521,17 @@ mod tests {
         let config = SpriteConfig::default();
         assert_eq!(resolve(Some("nidoran-f"), &config).unwrap().id, 29);
         assert_eq!(resolve(Some("nidoran male"), &config).unwrap().id, 32);
+    }
+
+    #[test]
+    fn limits_random_selection_to_available_species() {
+        let config = SpriteConfig {
+            range_start: 1,
+            range_end: 386,
+            ..SpriteConfig::default()
+        };
+        let pokemon = resolve_available(None, &config, |id| id == 384).unwrap();
+        assert_eq!(pokemon.id, 384);
+        assert_eq!(pokemon.name, "Rayquaza");
     }
 }

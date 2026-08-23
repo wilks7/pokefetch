@@ -144,6 +144,10 @@ fn generate_asset_bundle(
         "asset inventory must be uniquely sorted by set, variant, and species"
     );
 
+    let games = selected
+        .iter()
+        .map(|asset| asset.set.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
     let mut source = generated_prelude();
     for asset in selected {
         assert_eq!(
@@ -172,6 +176,7 @@ fn generate_asset_bundle(
         );
     }
     source.push_str(generated_postlude());
+    write_games(&mut source, games);
     let _ = writeln!(source, "pub(crate) const PROFILE: &str = {:?};", profile_id);
     source
 }
@@ -206,6 +211,7 @@ fn generate_legacy_bundle(manifest_dir: &std::path::Path, catalog: &SetCatalog) 
         );
     }
     source.push_str(generated_postlude());
+    source.push_str("pub(crate) const GAMES: &[&str] = &[\"red-blue\"];\n");
     source.push_str("pub(crate) const PROFILE: &str = \"red-blue-core-legacy\";\n");
     source
 }
@@ -213,8 +219,17 @@ fn generate_legacy_bundle(manifest_dir: &std::path::Path, catalog: &SetCatalog) 
 fn generate_empty_bundle() -> String {
     "pub(crate) fn sprite(_: &str, _: &str, _: &str) -> Option<&'static [u8]> { None }\n\
      pub(crate) fn palette(_: &str, _: &str, _: &str) -> Option<[(u8, u8, u8); 8]> { None }\n\
+     pub(crate) const GAMES: &[&str] = &[];\n\
      pub(crate) const PROFILE: &str = \"none\";\n"
         .to_string()
+}
+
+fn write_games<'a>(source: &mut String, games: impl IntoIterator<Item = &'a str>) {
+    source.push_str("pub(crate) const GAMES: &[&str] = &[\n");
+    for game in games {
+        let _ = writeln!(source, "    {:?},", game);
+    }
+    source.push_str("];\n");
 }
 
 fn generated_prelude() -> String {

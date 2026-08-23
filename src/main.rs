@@ -6,7 +6,7 @@ mod pokemon;
 mod sprite;
 mod terminal;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, Stdio};
 
 use anyhow::{Context, Result};
@@ -72,7 +72,6 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
     let (config, config_dir) = Config::load()?;
     config.validate()?;
-    let store = SpriteStore::new(&config.sprites, &config_dir);
 
     match cli.command.unwrap_or(Command::Greet {
         pokemon: None,
@@ -84,37 +83,37 @@ fn run() -> Result<()> {
             force_kitty,
             no_icon,
         } => {
-            let pokemon = pokemon::resolve(pokemon.as_deref(), &config.sprites)?;
+            let (store, pokemon) = select(&config, &config_dir, pokemon.as_deref())?;
             show(&config, &store, &pokemon, force_kitty)?;
             if config.icon.enabled && !no_icon && terminal::is_local_ghostty() {
-                schedule_icon(pokemon.id)?;
+                schedule_icon(pokemon.id, store.game())?;
             }
         }
         Command::Show {
             pokemon,
             force_kitty,
         } => {
-            let pokemon = pokemon::resolve(pokemon.as_deref(), &config.sprites)?;
+            let (store, pokemon) = select(&config, &config_dir, pokemon.as_deref())?;
             show(&config, &store, &pokemon, force_kitty)?;
         }
         Command::Palette { pokemon } => {
-            let pokemon = pokemon::resolve(pokemon.as_deref(), &config.sprites)?;
+            let (store, pokemon) = select(&config, &config_dir, pokemon.as_deref())?;
             let source = load_source(&store, &pokemon)?;
-            let colors = sprite::bundled_palette(pokemon.id, &store.game(), &store.variant())
+            let colors = sprite::bundled_palette(pokemon.id, store.game(), &store.variant())
                 .unwrap_or_else(|| palette::extract(&source, &config.display.background));
             for color in colors {
                 println!("{}", color.hex());
             }
         }
         Command::Icon { pokemon, output } => {
-            let pokemon = pokemon::resolve(pokemon.as_deref(), &config.sprites)?;
+            let (store, pokemon) = select(&config, &config_dir, pokemon.as_deref())?;
             let source = load_source(&store, &pokemon)?;
             let destination = output.unwrap_or_else(|| state_dir().join("Ghostty.icns"));
             icon::write(&source, &destination)?;
             println!("{}", destination.display());
         }
         Command::Sprite { pokemon } => {
-            let pokemon = pokemon::resolve(pokemon.as_deref(), &config.sprites)?;
+            let (store, pokemon) = select(&config, &config_dir, pokemon.as_deref())?;
             println!("{}", store.resolve(pokemon.id)?.display());
         }
         Command::Render {
@@ -123,7 +122,7 @@ fn run() -> Result<()> {
             size,
         } => {
             anyhow::ensure!(size >= 16, "render size must be at least 16 pixels");
-            let pokemon = pokemon::resolve(pokemon.as_deref(), &config.sprites)?;
+            let (store, pokemon) = select(&config, &config_dir, pokemon.as_deref())?;
             let source = load_source(&store, &pokemon)?;
             let rendered = image_ops::render_square(&source, size, 3);
             image_ops::save_png(&rendered, &output)?;
@@ -134,6 +133,30 @@ fn run() -> Result<()> {
     Ok(())
 }
 
+fn select<'a>(
+    config: &'a Config,
+    config_dir: &'a Path,
+    selector: Option<&str>,
+) -> Result<(SpriteStore<'a>, Pokemon)> {
+    if config.sprites.game.trim() == "random" {
+        if pokemon::is_random_selector(selector) {
+            let store = SpriteStore::new(&config.sprites, config_dir, None)?;
+            let pokemon = pokemon::resolve_available(selector, &config.sprites, |id| {
+                store.has_bundled_sprite(id)
+            })?;
+            return Ok((store, pokemon));
+        }
+
+        let pokemon = pokemon::resolve(selector, &config.sprites)?;
+        let store = SpriteStore::new(&config.sprites, config_dir, Some(pokemon.id))?;
+        return Ok((store, pokemon));
+    }
+
+    let store = SpriteStore::new(&config.sprites, config_dir, None)?;
+    let pokemon = pokemon::resolve(selector, &config.sprites)?;
+    Ok((store, pokemon))
+}
+
 fn show(
     config: &Config,
     store: &SpriteStore<'_>,
@@ -141,7 +164,7 @@ fn show(
     force_kitty: bool,
 ) -> Result<[palette::Color; palette::SIZE]> {
     let source = load_source(store, pokemon)?;
-    let colors = sprite::bundled_palette(pokemon.id, &store.game(), &store.variant())
+    let colors = sprite::bundled_palette(pokemon.id, store.game(), &store.variant())
         .unwrap_or_else(|| palette::extract(&source, &config.display.background));
     let png = if terminal::should_render_image(force_kitty) {
         let rendered = image_ops::render_square(&source, config.display.canvas_pixels, 3);
@@ -165,10 +188,11 @@ fn load_source(store: &SpriteStore<'_>, pokemon: &Pokemon) -> Result<image::Rgba
     image_ops::load_rgba(&path).with_context(|| format!("loading {}", pokemon.label()))
 }
 
-fn schedule_icon(id: u16) -> Result<()> {
+fn schedule_icon(id: u16, game: &str) -> Result<()> {
     let executable = std::env::current_exe().context("locating the pokefetch executable")?;
     ProcessCommand::new(executable)
         .args(["icon", &id.to_string()])
+        .env("POKEFETCH_GAME_OVERRIDE", game)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

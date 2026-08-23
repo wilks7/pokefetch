@@ -28,11 +28,37 @@ const SPRITE_BASE_URL: &str =
 pub struct SpriteStore<'a> {
     config: &'a SpriteConfig,
     config_dir: &'a Path,
+    game: String,
 }
 
 impl<'a> SpriteStore<'a> {
-    pub fn new(config: &'a SpriteConfig, config_dir: &'a Path) -> Self {
-        Self { config, config_dir }
+    pub fn new(
+        config: &'a SpriteConfig,
+        config_dir: &'a Path,
+        species: Option<u16>,
+    ) -> Result<Self> {
+        let legacy_game = known_game(config.variant.trim());
+        let configured_game = known_game(config.game.trim());
+        let variant = if config.artwork {
+            "official-artwork"
+        } else if legacy_game.is_some() || config.variant.trim().is_empty() {
+            "front"
+        } else {
+            config.variant.trim()
+        };
+        let game = if config.game.trim() == "random" && legacy_game.is_none() {
+            choose_bundled_game(variant, species)?
+        } else {
+            legacy_game
+                .or(configured_game)
+                .unwrap_or("red-blue")
+                .to_string()
+        };
+        Ok(Self {
+            config,
+            config_dir,
+            game,
+        })
     }
 
     pub fn resolve(&self, id: u16) -> Result<PathBuf> {
@@ -42,7 +68,7 @@ impl<'a> SpriteStore<'a> {
         let local = self
             .config_dir
             .join("sprites")
-            .join(&game)
+            .join(game)
             .join(&variant)
             .join(format!("{id}.{extension}"));
         if is_populated(&local) {
@@ -51,14 +77,14 @@ impl<'a> SpriteStore<'a> {
 
         let cache = cache_dir()
             .join("sprites")
-            .join(&game)
+            .join(game)
             .join(&variant)
             .join(format!("{id}.{extension}"));
         if is_populated(&cache) {
             return Ok(cache);
         }
 
-        if let Some(bytes) = bundled::sprite(&game, &variant, &id.to_string()) {
+        if let Some(bytes) = bundled::sprite(game, &variant, &id.to_string()) {
             atomic_write(&cache, bytes)?;
             return Ok(cache);
         }
@@ -87,17 +113,18 @@ impl<'a> SpriteStore<'a> {
         } else if known_game(self.config.variant.trim()).is_some() {
             preferred_front(self.config.variant.trim()).to_string()
         } else if self.config.variant.trim().is_empty() {
-            preferred_front(&self.game()).to_string()
+            preferred_front(self.game()).to_string()
         } else {
             self.config.variant.trim().to_string()
         }
     }
 
-    pub fn game(&self) -> String {
-        known_game(self.config.variant.trim())
-            .or_else(|| known_game(self.config.game.trim()))
-            .unwrap_or("red-blue")
-            .to_string()
+    pub fn game(&self) -> &str {
+        &self.game
+    }
+
+    pub fn has_bundled_sprite(&self, id: u16) -> bool {
+        bundled::sprite(&self.game, &self.variant(), &id.to_string()).is_some()
     }
 
     pub fn label(&self) -> String {
@@ -115,8 +142,8 @@ impl<'a> SpriteStore<'a> {
 
         let game = self.game();
         let variant = self.variant();
-        let generation = generation_for(&game).expect("validated game mapping");
-        let source = source_for_variant(&game, &variant)
+        let generation = generation_for(game).expect("validated game mapping");
+        let source = source_for_variant(game, &variant)
             .with_context(|| format!("no PokeAPI source mapping for sprite variant {variant:?}"))?;
         let suffix = if source.is_empty() {
             String::new()
@@ -128,6 +155,34 @@ impl<'a> SpriteStore<'a> {
             extension_for(&variant)
         ))
     }
+}
+
+fn choose_bundled_game(variant: &str, species: Option<u16>) -> Result<String> {
+    let override_game = std::env::var("POKEFETCH_GAME_OVERRIDE").ok();
+    let candidates = bundled::GAMES
+        .iter()
+        .copied()
+        .filter(|game| {
+            species.map_or_else(
+                || has_any_bundled_sprite(game, variant),
+                |id| bundled::sprite(game, variant, &id.to_string()).is_some(),
+            )
+        })
+        .collect::<Vec<_>>();
+    anyhow::ensure!(
+        !candidates.is_empty(),
+        "the compiled {} bundle has no {variant} sprites matching this selection",
+        bundled::PROFILE
+    );
+    if let Some(game) = override_game.filter(|game| candidates.contains(&game.as_str())) {
+        return Ok(game);
+    }
+    let index = rand::rng().random_range(0..candidates.len());
+    Ok(candidates[index].to_string())
+}
+
+fn has_any_bundled_sprite(game: &str, variant: &str) -> bool {
+    (1..=1025).any(|id| bundled::sprite(game, variant, &id.to_string()).is_some())
 }
 
 fn known_game(value: &str) -> Option<&str> {
@@ -237,8 +292,20 @@ mod tests {
             variant: "crystal".to_string(),
             ..SpriteConfig::default()
         };
-        let store = SpriteStore::new(&config, Path::new("."));
+        let store = SpriteStore::new(&config, Path::new("."), None).unwrap();
         assert_eq!(store.game(), "crystal");
         assert_eq!(store.variant(), "front");
+    }
+
+    #[cfg(feature = "bundle-gen1")]
+    #[test]
+    fn random_game_uses_a_game_present_in_the_bundle() {
+        let config = SpriteConfig {
+            game: "random".to_string(),
+            ..SpriteConfig::default()
+        };
+        let store = SpriteStore::new(&config, Path::new("."), None).unwrap();
+        assert_eq!(store.game(), "red-blue");
+        assert!(store.has_bundled_sprite(25));
     }
 }

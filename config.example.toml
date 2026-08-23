@@ -1,9 +1,9 @@
 [sprites]
-game = "red-blue"
+game = "random"
 variant = "front"
 artwork = false
 range_start = 1
-range_end = 151
+range_end = 386
 pokemon = []
 
 [display]

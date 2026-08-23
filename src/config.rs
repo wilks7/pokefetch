@@ -88,8 +88,8 @@ impl Config {
         let variant = self.sprites.variant.trim();
         let legacy_game = is_supported_game(variant);
         anyhow::ensure!(
-            is_supported_game(game),
-            "sprites.game must name a cataloged game"
+            game == "random" || is_supported_game(game),
+            "sprites.game must name a cataloged game or random"
         );
         anyhow::ensure!(
             self.sprites.artwork || legacy_game || matches!(variant, "front" | "front-animated"),
@@ -98,6 +98,10 @@ impl Config {
         anyhow::ensure!(
             variant != "front-animated" || game == "crystal",
             "front-animated is available only for crystal"
+        );
+        anyhow::ensure!(
+            game != "random" || (!self.sprites.artwork && variant == "front"),
+            "sprites.game random requires bundled front sprites"
         );
         anyhow::ensure!(
             self.sprites.range_start > 0 && self.sprites.range_start <= self.sprites.range_end,
@@ -198,6 +202,10 @@ mod tests {
 
         config.sprites.game = "crystal".to_string();
         config.sprites.variant = "front-animated".to_string();
+        assert!(config.validate().is_ok());
+
+        config.sprites.game = "random".to_string();
+        config.sprites.variant = "front".to_string();
         assert!(config.validate().is_ok());
     }
 }
