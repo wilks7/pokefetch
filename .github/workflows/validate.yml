@@ -1,0 +1,24 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  macos-bootstrap:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: brew install shellcheck
+      - run: shellcheck bootstrap/bootstrap bootstrap/doctor
+      - run: cargo fmt --check
+      - run: cargo test
+      - run: cargo test --features bundle-gen1
+      - run: POKEFETCH_BUNDLE=retro-master cargo test --features bundle-assets
+      - run: cargo clippy --all-targets --features bundle-gen1 -- -D warnings
+      - name: Install and verify the full bundle
+        run: bootstrap/bootstrap --root "$RUNNER_TEMP/pokefetch" --bundle retro-master --apply

@@ -4,6 +4,18 @@ Pokefetch is the Rust-owned interactive-shell greeting and Ghostty icon
 generator. It keeps the selected sprite variants in this repository while
 placing downloaded fallbacks and generated state under XDG cache/state paths.
 
+## Bootstrap
+
+Bootstrap is a dry run unless `--apply` is provided. The default installs the
+complete retro bundle into `~/.local` and then verifies the selected bundle and
+a greeting with no configuration file:
+
+```sh
+bootstrap/bootstrap
+bootstrap/bootstrap --apply
+bootstrap/doctor
+```
+
 ```sh
 cargo install --path ~/Developer/pokefetch --root ~/.local --force --locked
 pokefetch greet
