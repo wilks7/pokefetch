@@ -36,7 +36,19 @@ command remains available everywhere.
 
 Personal configuration lives at `$XDG_CONFIG_HOME/pokefetch/config.toml`
 (normally `~/.config/pokefetch/config.toml`); `config.example.toml` documents
-the supported shape. Local overrides are resolved from
+the supported shape. The file is optional: without it, Pokefetch uses built-in
+Red/Blue, IDs 1–151, size 8, centered defaults. Command-line values temporarily
+override TOML without rewriting it:
+
+```sh
+pokefetch --game crystal --size 8 --alignment center
+pokefetch --game gold --game silver --game crystal show celebi
+pokefetch --game gold,crystal --size 2 --alignment top --no-icon
+```
+
+Global overrides may appear before or after a subcommand. Run
+`pokefetch --help` for game, variant, range, artwork, layout, background, and
+icon controls. Local sprite overrides are resolved from
 `sprites/<game>/<variant>/<id>.<format>`; missing bundled or local sprites fall
 back to the pinned PokeAPI revision and are cached by game and variant under
 `$XDG_CACHE_HOME/pokefetch/sprites`.

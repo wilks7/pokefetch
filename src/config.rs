@@ -256,6 +256,14 @@ mod tests {
     }
 
     #[test]
+    fn an_empty_toml_document_uses_runnable_defaults() {
+        let config: Config = toml::from_str("").unwrap();
+        assert_eq!(config.sprites.game.fixed(), Some("red-blue"));
+        assert_eq!(config.sprites.range_end, 151);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
     fn rejects_an_inverted_random_range() {
         let mut config = Config::default();
         config.sprites.range_start = 151;
