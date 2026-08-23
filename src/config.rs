@@ -79,12 +79,12 @@ pub enum Alignment {
 }
 
 impl DisplayConfig {
-    pub fn columns(&self) -> u16 {
-        self.size * 2
+    pub fn columns(&self) -> u32 {
+        u32::from(self.size) * 2
     }
 
     pub fn canvas_pixels(&self) -> u32 {
-        u32::from(self.size) * 32
+        (u32::from(self.size) * 32).min(2048)
     }
 }
 
@@ -188,8 +188,8 @@ impl Config {
             "sprites.pokemon entries must be between 1 and 1025"
         );
         anyhow::ensure!(
-            (1..=8).contains(&self.display.size),
-            "display.size must be between 1 and 8 rows"
+            self.display.size > 0,
+            "display.size must be at least one row"
         );
         Ok(())
     }
@@ -261,6 +261,22 @@ mod tests {
         assert_eq!(config.sprites.game.fixed(), Some("red-blue"));
         assert_eq!(config.sprites.range_end, 151);
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn accepts_large_row_sizes_with_a_bounded_render_canvas() {
+        let mut config = Config::default();
+        config.display.size = 64;
+        assert!(config.validate().is_ok());
+        assert_eq!(config.display.columns(), 128);
+        assert_eq!(config.display.canvas_pixels(), 2048);
+
+        config.display.size = 128;
+        assert!(config.validate().is_ok());
+        assert_eq!(config.display.canvas_pixels(), 2048);
+
+        config.display.size = 0;
+        assert!(config.validate().is_err());
     }
 
     #[test]

@@ -58,8 +58,10 @@ eight-row image, derives a 16-column Kitty placement and a 256-pixel render
 canvas, and therefore scales consistently with the terminal's font size.
 `alignment = "center"` vertically centers whichever side is shorter—the image
 or the information text—while `alignment = "top"` starts both on the first
-row. Pokefetch accepts sizes from one through eight and does not add synthetic
-empty information lines.
+row. Size has a minimum of one row and no layout maximum; the intermediate
+raster tops out at 2048 pixels (the native density for size 64) to prevent
+larger placements from causing runaway startup allocations. Pokefetch does not
+add synthetic empty information lines.
 
 Hardware and package-manager summaries are cached in
 `$XDG_CACHE_HOME/pokefetch/system.toml` so opening a new terminal does not

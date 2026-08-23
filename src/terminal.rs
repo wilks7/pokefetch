@@ -39,7 +39,7 @@ pub fn print_greeting(
             write!(
                 output,
                 "\r\x1b[{}C\x1b[38;2;{};{};{}m{}\x1b[0m\r\n",
-                display.columns() + display.gap,
+                display.columns() + u32::from(display.gap),
                 color.red,
                 color.green,
                 color.blue,
@@ -164,7 +164,7 @@ fn is_fresh(timestamp: u64, now: u64, lifetime: Duration) -> bool {
     timestamp > 0 && now.saturating_sub(timestamp) < lifetime.as_secs()
 }
 
-fn transmit_kitty(writer: &mut impl Write, png: &[u8], columns: u16, rows: u16) -> Result<()> {
+fn transmit_kitty(writer: &mut impl Write, png: &[u8], columns: u32, rows: u16) -> Result<()> {
     let encoded = STANDARD.encode(png);
     let chunks: Vec<&[u8]> = encoded.as_bytes().chunks(4096).collect();
     for (index, chunk) in chunks.iter().enumerate() {
