@@ -84,7 +84,7 @@ impl DisplayConfig {
     }
 
     pub fn canvas_pixels(&self) -> u32 {
-        (u32::from(self.size) * 32).min(2048)
+        u32::from(self.size) * 32
     }
 }
 
@@ -188,8 +188,8 @@ impl Config {
             "sprites.pokemon entries must be between 1 and 1025"
         );
         anyhow::ensure!(
-            self.display.size > 0,
-            "display.size must be at least one row"
+            (1..=32).contains(&self.display.size),
+            "display.size must be between 1 and 32 rows"
         );
         Ok(())
     }
@@ -264,16 +264,15 @@ mod tests {
     }
 
     #[test]
-    fn accepts_large_row_sizes_with_a_bounded_render_canvas() {
+    fn accepts_row_sizes_through_thirty_two() {
         let mut config = Config::default();
-        config.display.size = 64;
+        config.display.size = 32;
         assert!(config.validate().is_ok());
-        assert_eq!(config.display.columns(), 128);
-        assert_eq!(config.display.canvas_pixels(), 2048);
+        assert_eq!(config.display.columns(), 64);
+        assert_eq!(config.display.canvas_pixels(), 1024);
 
-        config.display.size = 128;
-        assert!(config.validate().is_ok());
-        assert_eq!(config.display.canvas_pixels(), 2048);
+        config.display.size = 33;
+        assert!(config.validate().is_err());
 
         config.display.size = 0;
         assert!(config.validate().is_err());
