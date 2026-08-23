@@ -138,7 +138,7 @@ fn select<'a>(
     config_dir: &'a Path,
     selector: Option<&str>,
 ) -> Result<(SpriteStore<'a>, Pokemon)> {
-    if config.sprites.game.trim() == "random" {
+    if config.sprites.game.is_pool() {
         if pokemon::is_random_selector(selector) {
             let store = SpriteStore::new(&config.sprites, config_dir, None)?;
             let pokemon = pokemon::resolve_available(selector, &config.sprites, |id| {

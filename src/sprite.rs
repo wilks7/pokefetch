@@ -38,7 +38,7 @@ impl<'a> SpriteStore<'a> {
         species: Option<u16>,
     ) -> Result<Self> {
         let legacy_game = known_game(config.variant.trim());
-        let configured_game = known_game(config.game.trim());
+        let configured_game = config.game.fixed().and_then(known_game);
         let variant = if config.artwork {
             "official-artwork"
         } else if legacy_game.is_some() || config.variant.trim().is_empty() {
@@ -46,8 +46,8 @@ impl<'a> SpriteStore<'a> {
         } else {
             config.variant.trim()
         };
-        let game = if config.game.trim() == "random" && legacy_game.is_none() {
-            choose_bundled_game(variant, species)?
+        let game = if config.game.is_pool() && legacy_game.is_none() {
+            choose_bundled_game(variant, species, config.game.pool())?
         } else {
             legacy_game
                 .or(configured_game)
@@ -157,11 +157,31 @@ impl<'a> SpriteStore<'a> {
     }
 }
 
-fn choose_bundled_game(variant: &str, species: Option<u16>) -> Result<String> {
+fn choose_bundled_game(
+    variant: &str,
+    species: Option<u16>,
+    requested: Option<&[String]>,
+) -> Result<String> {
+    if let Some(requested) = requested {
+        let missing = requested
+            .iter()
+            .map(|game| game.trim())
+            .filter(|game| !bundled::GAMES.contains(game))
+            .collect::<Vec<_>>();
+        anyhow::ensure!(
+            missing.is_empty(),
+            "the compiled {} bundle does not contain: {}",
+            bundled::PROFILE,
+            missing.join(", ")
+        );
+    }
     let override_game = std::env::var("POKEFETCH_GAME_OVERRIDE").ok();
     let candidates = bundled::GAMES
         .iter()
         .copied()
+        .filter(|game| {
+            requested.is_none_or(|games| games.iter().any(|wanted| wanted.trim() == *game))
+        })
         .filter(|game| {
             species.map_or_else(
                 || has_any_bundled_sprite(game, variant),
@@ -273,6 +293,8 @@ fn is_populated(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{generation_for, preferred_front, source_for_variant, SpriteStore};
+    #[cfg(any(feature = "bundle-gen1", feature = "bundle-assets"))]
+    use crate::config::GameSelection;
     use crate::config::SpriteConfig;
     use std::path::Path;
 
@@ -301,11 +323,40 @@ mod tests {
     #[test]
     fn random_game_uses_a_game_present_in_the_bundle() {
         let config = SpriteConfig {
-            game: "random".to_string(),
+            game: "random".into(),
             ..SpriteConfig::default()
         };
         let store = SpriteStore::new(&config, Path::new("."), None).unwrap();
         assert_eq!(store.game(), "red-blue");
         assert!(store.has_bundled_sprite(25));
+    }
+
+    #[cfg(any(feature = "bundle-gen1", feature = "bundle-assets"))]
+    #[test]
+    fn curated_pool_uses_only_requested_bundled_games() {
+        let requested = super::bundled::GAMES
+            .iter()
+            .take(2)
+            .map(|game| (*game).to_string())
+            .collect::<Vec<_>>();
+        let config = SpriteConfig {
+            game: GameSelection::Many(requested.clone()),
+            ..SpriteConfig::default()
+        };
+        let store = SpriteStore::new(&config, Path::new("."), None).unwrap();
+        assert!(requested.iter().any(|game| game == store.game()));
+    }
+
+    #[cfg(feature = "bundle-gen1")]
+    #[test]
+    fn listed_games_must_be_present_in_the_bundle() {
+        let config = SpriteConfig {
+            game: GameSelection::Many(vec!["crystal".to_string()]),
+            ..SpriteConfig::default()
+        };
+        let error = SpriteStore::new(&config, Path::new("."), None)
+            .err()
+            .unwrap();
+        assert!(error.to_string().contains("does not contain: crystal"));
     }
 }

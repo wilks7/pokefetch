@@ -82,6 +82,17 @@ range_start = 1
 range_end = 386
 ```
 
+The same key accepts a curated pool. Every listed game must be present in the
+compiled bundle:
+
+```toml
+[sprites]
+game = ["gold", "silver", "crystal"]
+variant = "front"
+range_start = 1
+range_end = 251
+```
+
 The legacy `variant = "red-blue"` configuration and `bundle-gen1` Cargo
 feature remain compatible during migration.
 
