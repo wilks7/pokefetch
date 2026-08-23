@@ -19,3 +19,26 @@
 - Before committing Rust changes, run `cargo fmt --check`, `cargo test`,
   `cargo test --features bundle-gen1`, and
   `cargo clippy --all-targets --features bundle-gen1 -- -D warnings`.
+
+## Handoff
+
+This file is the provider-neutral project brief for Claude, Codex, OpenCode,
+and other agents. Read `README.md`, `docs/assets-and-distribution.md`,
+`release/README.md`, and the manifests before changing bundle or release
+architecture.
+
+Current direction:
+
+- Keep `v0.1.0` unreleased until the hosted validation and personal Mac mini
+  bootstrap have been exercised.
+- Workflows are manual-only. Never push, tag, or publish a release without
+  Michael's fresh confirmation.
+- Next release work is to validate the current packaging workflows, then
+  prepare the first release only after the Mac mini dry run is green.
+- Later roadmap items are broader PokeAPI front-sprite coverage and a
+  reusable rendering/service boundary; overworld directional animation is a
+  separate future asset model, not part of the current greeting bundle.
+
+Do not change native Claude, Codex, OpenCode, or dotfiles state as part of
+Pokefetch feature work. Keep credentials, provider sessions, and machine-local
+configuration outside this repository.
