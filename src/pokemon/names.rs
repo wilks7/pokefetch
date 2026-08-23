@@ -1,114 +1,24 @@
-use anyhow::{bail, Result};
-use rand::Rng;
+//! The National Pokedex name table, indexed by Pokedex number minus one.
+//!
+//! This lives in its own file purely so that [`super`] stays readable: a 386
+//! entry array would otherwise bury the twenty lines of logic that use it.
+//! Splitting a module across files like this is the normal Rust answer to
+//! "this file is getting long" — `mod.rs` holds the behaviour, siblings hold
+//! the data.
+//!
+//! # Rust concepts on display
+//!
+//! - `[&'static str; N]`: a fixed-size array of string slices. The size is
+//!   part of the type, so the compiler rejects a table with the wrong length.
+//! - `&'static str`: borrowed text that lives in the executable itself. No
+//!   allocation happens at startup; the bytes are simply part of the binary.
 
-use crate::config::SpriteConfig;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Pokemon {
-    pub id: u16,
-    pub name: String,
-}
-
-impl Pokemon {
-    pub fn label(&self) -> String {
-        format!("#{:03} {}", self.id, self.name)
-    }
-}
-
-pub fn resolve(selector: Option<&str>, config: &SpriteConfig) -> Result<Pokemon> {
-    resolve_available(selector, config, |_| true)
-}
-
-pub fn resolve_available(
-    selector: Option<&str>,
-    config: &SpriteConfig,
-    mut available: impl FnMut(u16) -> bool,
-) -> Result<Pokemon> {
-    let selector = selector.map(str::trim).filter(|value| !value.is_empty());
-    if selector.is_none() || selector == Some("random") {
-        return Ok(from_id(random_id(config, &mut available)?));
-    }
-
-    let selector = selector.expect("checked above");
-    if let Ok(id) = selector.parse::<u16>() {
-        if (1..=1025).contains(&id) {
-            return Ok(from_id(id));
-        }
-        bail!("Pokemon id must be between 1 and 1025");
-    }
-
-    let wanted = normalize(selector);
-    for (index, name) in NAMES.iter().enumerate() {
-        if normalize(name) == wanted {
-            return Ok(Pokemon {
-                id: index as u16 + 1,
-                name: (*name).to_string(),
-            });
-        }
-    }
-
-    let special = match wanted.as_str() {
-        "nidoranf" | "nidoranfemale" => Some(29),
-        "nidoranm" | "nidoranmale" => Some(32),
-        "mrmime" => Some(122),
-        "farfetchd" => Some(83),
-        _ => None,
-    };
-    if let Some(id) = special {
-        return Ok(from_id(id));
-    }
-
-    bail!("unknown Pokemon {selector:?}; use a name, numeric id, or 'random'")
-}
-
-pub fn is_random_selector(selector: Option<&str>) -> bool {
-    selector
-        .map(str::trim)
-        .is_none_or(|value| value.is_empty() || value == "random")
-}
-
-fn random_id(config: &SpriteConfig, available: &mut impl FnMut(u16) -> bool) -> Result<u16> {
-    let candidates = if !config.pokemon.is_empty() {
-        config
-            .pokemon
-            .iter()
-            .copied()
-            .filter(|id| available(*id))
-            .collect::<Vec<_>>()
-    } else {
-        (config.range_start..=config.range_end)
-            .filter(|id| available(*id))
-            .collect::<Vec<_>>()
-    };
-    if candidates.is_empty() {
-        bail!("no Pokemon in the configured selection have a bundled sprite");
-    }
-    let index = rand::rng().random_range(0..candidates.len());
-    Ok(candidates[index])
-}
-
-fn from_id(id: u16) -> Pokemon {
-    let name = NAMES
-        .get(usize::from(id.saturating_sub(1)))
-        .map(|name| (*name).to_string())
-        .unwrap_or_else(|| format!("Pokemon {id}"));
-    Pokemon { id, name }
-}
-
-fn normalize(value: &str) -> String {
-    let mut normalized = String::new();
-    for character in value.chars().flat_map(char::to_lowercase) {
-        match character {
-            '♀' => normalized.push_str("female"),
-            '♂' => normalized.push_str("male"),
-            _ if character.is_alphanumeric() => normalized.push(character),
-            _ => {}
-        }
-    }
-    normalized
-}
-
-const NAMES: [&str; 386] = [
+/// Every species Pokefetch can name, in Pokedex order (`NAMES[0]` is #001).
+///
+/// The array length is deliberately spelled out rather than inferred with
+/// `[&str; _]`, so that adding a generation without extending the table is a
+/// compile error instead of a runtime surprise.
+pub(super) const NAMES: [&str; 386] = [
     "Bulbasaur",
     "Ivysaur",
     "Venusaur",
@@ -496,42 +406,3 @@ const NAMES: [&str; 386] = [
     "Jirachi",
     "Deoxys",
 ];
-
-#[cfg(test)]
-mod tests {
-    use super::{resolve, resolve_available};
-    use crate::config::SpriteConfig;
-
-    #[test]
-    fn resolves_names_punctuation_and_ids() {
-        let config = SpriteConfig::default();
-        assert_eq!(resolve(Some("pikachu"), &config).unwrap().id, 25);
-        assert_eq!(resolve(Some("Farfetch'd"), &config).unwrap().id, 83);
-        assert_eq!(resolve(Some("mr mime"), &config).unwrap().id, 122);
-        assert_eq!(resolve(Some("151"), &config).unwrap().name, "Mew");
-        assert_eq!(resolve(Some("chikorita"), &config).unwrap().id, 152);
-        assert_eq!(resolve(Some("ho oh"), &config).unwrap().id, 250);
-        assert_eq!(resolve(Some("treecko"), &config).unwrap().id, 252);
-        assert_eq!(resolve(Some("rayquaza"), &config).unwrap().id, 384);
-        assert_eq!(resolve(Some("386"), &config).unwrap().name, "Deoxys");
-    }
-
-    #[test]
-    fn resolves_gender_aliases() {
-        let config = SpriteConfig::default();
-        assert_eq!(resolve(Some("nidoran-f"), &config).unwrap().id, 29);
-        assert_eq!(resolve(Some("nidoran male"), &config).unwrap().id, 32);
-    }
-
-    #[test]
-    fn limits_random_selection_to_available_species() {
-        let config = SpriteConfig {
-            range_start: 1,
-            range_end: 386,
-            ..SpriteConfig::default()
-        };
-        let pokemon = resolve_available(None, &config, |id| id == 384).unwrap();
-        assert_eq!(pokemon.id, 384);
-        assert_eq!(pokemon.name, "Rayquaza");
-    }
-}

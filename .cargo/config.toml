@@ -1,0 +1,5 @@
+# Document private items too. In a normal crate the public API is the point; in
+# this one the private helpers are half the teaching material, and `cargo doc`
+# hiding them would also break the intra-doc links that reference them.
+[build]
+rustdocflags = ["--document-private-items"]

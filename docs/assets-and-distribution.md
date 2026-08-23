@@ -13,7 +13,10 @@ its storage model the permanent architecture for every future sprite use.
 - `assets/sets` stores the curated upstream bytes required for reproducible and
   offline builds.
 - `manifests/bundles.toml` selects source assets for a compiled executable.
-- `release/bundles.txt` selects which executable flavors become release assets.
+
+Which profile a given build embeds is chosen at build time by
+`POKEFETCH_BUNDLE`, not by a separate release manifest. The release workflow
+builds one flavor (`retro-master`); anything else is a local build.
 
 The complete source corpus is currently small enough for ordinary Git. Revisit
 that choice based on measured clone and repository cost, not merely asset
@@ -23,8 +26,9 @@ normal Git materially harms development or distribution.
 `retro-master` means every supported asset selected by that profile at a given
 Git tag. As later PokeAPI games are imported, a tagged release continues to pin
 the exact historical contents while newer releases may expand the profile.
-Compact profiles remain useful for constrained installations, but releases do
-not need to prebuild every possible combination.
+Compact profiles remain useful for constrained installations and for keeping
+local build times down, but a release does not need to prebuild every possible
+combination — one complete flavor plus buildable sources covers both audiences.
 
 ## Future rendering and serving boundary
 

@@ -1,3 +1,25 @@
+//! Build script: turns sprite manifests into Rust source before compilation.
+//!
+//! Cargo runs this before compiling the crate. Its job is to read
+//! `manifests/*.toml`, select the assets named by `POKEFETCH_BUNDLE`, and emit
+//! a `bundled.rs` full of `include_bytes!` calls into `OUT_DIR`. `src/sprite.rs`
+//! then pulls that file in with `include!`.
+//!
+//! This is why an offline build works at all: the sprites become part of the
+//! executable, and their palettes are computed here rather than at startup.
+//!
+//! # Rust concepts on display
+//!
+//! - **`cargo:rerun-if-changed`**: printing these lines tells Cargo exactly
+//!   what this script depends on. Without them Cargo would either re-run it on
+//!   every build or miss a changed asset.
+//! - **Generating code as a string**: the output is plain text written with
+//!   `writeln!`. There is no macro magic — a build script emits source, and the
+//!   compiler reads it like any other file.
+//! - **`panic!` is the right error handling here**: a build script has no user
+//!   to apologize to. A bad manifest should stop the build loudly, which is why
+//!   this file uses `expect`/`assert!` where the crate itself uses `anyhow`.
+
 use std::env;
 use std::fmt::Write as _;
 use std::fs;
@@ -5,6 +27,11 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
+// A build script is compiled as its own separate crate, so it cannot `use`
+// anything from the crate it is building -- the library does not exist yet.
+// `#[path]` sidesteps that by compiling the same source file a second time,
+// which is the standard trick for sharing code with a build script. The
+// `dead_code` allowance is needed because only part of the module is used here.
 #[path = "src/palette.rs"]
 #[allow(dead_code)]
 mod palette;
@@ -177,7 +204,7 @@ fn generate_asset_bundle(
     }
     source.push_str(generated_postlude());
     write_games(&mut source, games);
-    let _ = writeln!(source, "pub(crate) const PROFILE: &str = {:?};", profile_id);
+    let _ = writeln!(source, "pub(crate) const PROFILE: &str = {profile_id:?};");
     source
 }
 
@@ -227,7 +254,7 @@ fn generate_empty_bundle() -> String {
 fn write_games<'a>(source: &mut String, games: impl IntoIterator<Item = &'a str>) {
     source.push_str("pub(crate) const GAMES: &[&str] = &[\n");
     for game in games {
-        let _ = writeln!(source, "    {:?},", game);
+        let _ = writeln!(source, "    {game:?},");
     }
     source.push_str("];\n");
 }

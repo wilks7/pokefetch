@@ -1,4 +1,0 @@
-# Binary flavors published by the release packager.
-# retro-master is the complete experience; red-blue-core is the compact floor.
-retro-master
-red-blue-core

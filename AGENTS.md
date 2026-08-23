@@ -20,24 +20,56 @@
   `cargo test --features bundle-gen1`, and
   `cargo clippy --all-targets --features bundle-gen1 -- -D warnings`.
 
+## This repository is also a Rust teaching example
+
+Pokefetch is a working tool first. It is additionally maintained as a
+learn-by-example codebase, which adds a few obligations:
+
+- Every module opens with a `//!` comment stating what it does and which Rust
+  concepts it demonstrates. Keep these accurate when the module changes.
+- Every public item carries a doc comment; `missing_docs` is a warning and CI
+  treats warnings as errors.
+- Prefer the idiomatic construct over the clever one, and comment the choice
+  when a reader might reasonably expect the other. Explain code constraints,
+  not history.
+- Examples in doc comments are compiled and run by `cargo test`. Add them where
+  a signature alone is ambiguous.
+- `docs/tour/` walks the codebase for a Rust beginner. If you move, rename, or
+  split a module, update the chapters that reference it — they cite files and
+  function names by hand.
+- Lints live in `Cargo.toml` under `[lints]` at `clippy::pedantic`. Prefer
+  fixing a warning; when silencing one, do it at the narrowest scope with a
+  comment saying why.
+
+## Layout
+
+- `src/lib.rs` holds the crate; `src/main.rs` is a thin binary over it. Keep it
+  thin — logic belongs in the library so it can be documented and tested.
+- `src/bin/pokefetch-assets.rs` is the asset import tool and may depend on the
+  library. `build.rs` may not, and shares `src/palette.rs` via `#[path]`.
+- `tests/` holds integration tests that see only the public API.
+- `shell/` holds shell integration. `docs/ghostty.md` covers the terminal side.
+
 ## Handoff
 
 This file is the provider-neutral project brief for Claude, Codex, OpenCode,
-and other agents. Read `README.md`, `docs/assets-and-distribution.md`,
-`release/README.md`, and the manifests before changing bundle or release
+and other agents. Read `README.md`, `docs/tour/README.md`,
+`docs/assets-and-distribution.md`, and the manifests before changing bundle
 architecture.
 
 Current direction:
 
-- Keep `v0.1.0` unreleased until the hosted validation and personal Mac mini
-  bootstrap have been exercised.
-- Workflows are manual-only. Never push, tag, or publish a release without
-  Michael's fresh confirmation.
-- Next release work is to validate the current packaging workflows, then
-  prepare the first release only after the Mac mini dry run is green.
-- Later roadmap items are broader PokeAPI front-sprite coverage and a
-  reusable rendering/service boundary; overworld directional animation is a
-  separate future asset model, not part of the current greeting bundle.
+- Keep the repository simple. Elaborate release packaging, checksum and
+  provenance verification, bootstrap and doctor scripts, a changelog, and
+  multi-flavor release matrices were deliberately removed. Distribution is:
+  clone and `cargo install --path .`, or download a binary from GitHub
+  Releases. Do not reintroduce that machinery without an explicit decision.
+- CI is one workflow that runs fmt, clippy, and tests. Releases are one
+  workflow triggered by pushing a tag.
+- Never push, tag, or publish a release without Michael's fresh confirmation.
+- Later roadmap items are broader PokeAPI front-sprite coverage and a reusable
+  rendering/service boundary; overworld directional animation is a separate
+  future asset model, not part of the current greeting bundle.
 
 Do not change native Claude, Codex, OpenCode, or dotfiles state as part of
 Pokefetch feature work. Keep credentials, provider sessions, and machine-local

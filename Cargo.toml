@@ -2,6 +2,7 @@
 name = "pokefetch"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.85"
 authors = ["Michael Wilk"]
 description = "Palette-driven Pokemon terminal greeting and sprite renderer"
 license = "MIT"
@@ -34,6 +35,30 @@ ureq = "3"
 image = { version = "0.25", default-features = false, features = ["png"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"
+
+# Lints live here rather than as `#![warn(..)]` attributes in lib.rs, which is
+# the modern convention: one place, and it applies to build.rs and both
+# binaries too. `pedantic` is a deliberately opinionated group -- it is not a
+# bug list, it is a style teacher, which is exactly what this repository wants.
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Doc comments on private items are optional; on public ones they are not.
+missing_panics_doc = "allow"
+# `crate::config::Config` reads better than inventing non-repeating names.
+module_name_repetitions = "allow"
+# `#[must_use]` earns its keep on a builder or a costly computation. On a
+# three-line getter it is noise, and this crate is mostly getters.
+must_use_candidate = "allow"
+
+# `.cargo/config.toml` passes `--document-private-items`, so links from public
+# docs into private helpers do resolve in the generated site. The lint does not
+# know that, and here those links are the point.
+[lints.rustdoc]
+private_intra_doc_links = "allow"
 
 [profile.release]
 lto = "thin"

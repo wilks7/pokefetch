@@ -1,3 +1,18 @@
+//! `pokefetch-assets`: imports pinned `PokeAPI` sprites into this repository.
+//!
+//! A second binary in the same crate. Cargo compiles every file in `src/bin/`
+//! into its own executable, which is how one project ships both a user-facing
+//! command and a maintenance tool without a second package.
+//!
+//! Every import is a **dry run** unless `--apply` is passed. That default is
+//! deliberate: this tool rewrites tracked files, and seeing the plan before the
+//! change is the difference between a review and a surprise.
+//!
+//! ```sh
+//! cargo run --bin pokefetch-assets -- list
+//! cargo run --bin pokefetch-assets -- import --source /tmp/sprites --set crystal
+//! ```
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -7,9 +22,9 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[path = "../palette.rs"]
-#[allow(dead_code)]
-mod palette;
+// Unlike `build.rs`, a binary target *can* depend on its own library, so this
+// imports the real module instead of re-compiling the file.
+use pokefetch::palette;
 
 const INVENTORY_PATH: &str = "assets/manifest.toml";
 const TERMINAL_BACKGROUND: &str = "#222436";
@@ -33,7 +48,7 @@ enum AssetCommand {
     List,
     /// Plan an import, or write it only when --apply is present.
     Import {
-        /// Local checkout of the pinned PokeAPI/sprites repository.
+        /// Local checkout of the pinned `PokeAPI`/sprites repository.
         #[arg(long)]
         source: PathBuf,
         /// Import only these set IDs; repeat for multiple sets. Defaults to all.
@@ -159,7 +174,10 @@ fn run() -> Result<()> {
     validate_bundles(&bundles, &catalog)?;
 
     match cli.command {
-        AssetCommand::List => list_catalog(&catalog, &bundles),
+        AssetCommand::List => {
+            list_catalog(&catalog, &bundles);
+            Ok(())
+        }
         AssetCommand::Import {
             source,
             sets,
@@ -291,7 +309,7 @@ fn validate_bundles(bundles: &BundleCatalog, catalog: &SetCatalog) -> Result<()>
     Ok(())
 }
 
-fn list_catalog(catalog: &SetCatalog, bundles: &BundleCatalog) -> Result<()> {
+fn list_catalog(catalog: &SetCatalog, bundles: &BundleCatalog) {
     println!("sprite sets:");
     for set in &catalog.sets {
         let variants = set
@@ -325,7 +343,6 @@ fn list_catalog(catalog: &SetCatalog, bundles: &BundleCatalog) -> Result<()> {
             .join(", ");
         println!("  {} · {members}", bundle.id);
     }
-    Ok(())
 }
 
 fn import_assets(
@@ -553,7 +570,7 @@ fn import_candidate(candidate: &Candidate) -> Result<AssetRecord> {
         path: candidate.destination.to_string_lossy().into_owned(),
         bytes: bytes.len() as u64,
         sha256: format!("{:x}", Sha256::digest(&bytes)),
-        terminal_palette: colors.into_iter().map(|color| color.hex()).collect(),
+        terminal_palette: colors.into_iter().map(palette::Color::hex).collect(),
     })
 }
 

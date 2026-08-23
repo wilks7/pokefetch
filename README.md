@@ -1,64 +1,72 @@
 # Pokefetch
 
-Pokefetch is the Rust-owned interactive-shell greeting and Ghostty icon
-generator. It keeps the selected sprite variants in this repository while
-placing downloaded fallbacks and generated state under XDG cache/state paths.
+A terminal greeting that draws a Pokemon sprite beside your machine details,
+colored from that sprite's own palette. Written in Rust.
 
-## Bootstrap
-
-Bootstrap is a dry run unless `--apply` is provided. The default installs the
-complete retro bundle into `~/.local` and then verifies the selected bundle and
-a greeting with no configuration file:
-
-```sh
-bootstrap/bootstrap
-bootstrap/bootstrap --apply
-bootstrap/doctor
+```text
+        ▄▄▄            Trainer @ studio
+     ▄█▀   ▀█▄         macOS 15.3 · Apple M2
+    █▀  ▄ ▄  ▀█        8C CPU · 10C GPU · 16GB RAM
+    █   ▀▄▀   █        Fish · Ghostty · 214 Brew
+     ▀█▄▄▄▄▄█▀         #025 Pikachu · red-blue/front
 ```
 
-The repository's `Validate` GitHub Actions workflow is manual-only. Run it from
-the Actions tab to repeat the full bootstrap and doctor on a fresh hosted Mac.
-It also packages every release flavor, verifies checksums and provenance, runs
-the archived executables, and proves an existing user config is unchanged.
-The separate manual `Release` workflow packages the profiles listed in
-`release/bundles.txt` and creates a draft GitHub Release from an existing
-version tag. It never publishes a release automatically.
+It also generates a matching macOS dock icon for Ghostty, so your terminal icon
+changes with the greeting.
+
+> **New to Rust?** This repository doubles as a worked example. See
+> [`docs/tour/`](docs/tour/README.md) for a guided walkthrough of the codebase,
+> and `cargo doc --open` for API documentation generated from the source.
+
+## Install
+
+### From source
 
 ```sh
-cargo install --path ~/Developer/pokefetch --root ~/.local --force --locked
-pokefetch greet
-pokefetch show pikachu
-pokefetch palette eevee
-pokefetch icon 25 --output /tmp/Pikachu.icns
+git clone https://github.com/wilks7/pokefetch
+cd pokefetch
+cargo install --path . --root ~/.local --locked
 ```
 
-For an offline build, choose a named profile and embed its imported sprites
-and precomputed terminal palettes:
+That gives you a working binary that downloads sprites on demand and caches
+them. For a fully offline binary with artwork baked in, pick a bundle:
 
 ```sh
-POKEFETCH_BUNDLE=red-blue-core \
-  cargo install --path ~/Developer/pokefetch --root ~/.local --force --locked \
-  --features bundle-assets
+POKEFETCH_BUNDLE=retro-master \
+  cargo install --path . --root ~/.local --locked --features bundle-assets
+```
 
+`retro-master` is every imported game through FireRed/LeafGreen (~6 MB).
+`red-blue-core` is the compact floor (~3.5 MB). Check what a binary contains:
+
+```sh
 pokefetch bundle
 ```
 
-Use `POKEFETCH_BUNDLE=retro-master` for every imported game through
-FireRed/LeafGreen. The current corpus produces an approximately 6 MB release
-binary for `retro-master`, compared with 3.5 MB for `red-blue-core`.
+### From a release
 
-The default greeting chooses one of the original 151 Pokemon, displays its
-`red-blue` sprite through the Kitty graphics protocol, colors five compact
-machine/Pokemon lines from the sprite's palette, and atomically prepares
-`~/.local/state/pokefetch/Ghostty.icns` for the next Ghostty launch. Icon work
-is skipped automatically outside a local Ghostty session; the explicit `icon`
-command remains available everywhere.
+Download the archive from the
+[releases page](https://github.com/wilks7/pokefetch/releases), unpack it, and
+put `pokefetch` on your `PATH`. Release binaries are built with
+`retro-master`, so they need no network at all.
 
-Personal configuration lives at `$XDG_CONFIG_HOME/pokefetch/config.toml`
-(normally `~/.config/pokefetch/config.toml`); `config.example.toml` documents
-the supported shape. The file is optional: without it, Pokefetch uses built-in
-Red/Blue, IDs 1–151, size 8, centered defaults. Command-line values temporarily
-override TOML without rewriting it:
+## Use it
+
+```sh
+pokefetch                              # the full greeting
+pokefetch show pikachu                 # one Pokemon, no icon work
+pokefetch palette eevee                # the eight extracted colors
+pokefetch sprite 25                    # resolved sprite path
+pokefetch icon 25 --output /tmp/P.icns # a macOS icon
+pokefetch render 6 --output /tmp/x.png # a scaled PNG, for inspection
+pokefetch bundle                       # what artwork is compiled in
+```
+
+Bare `pokefetch` is the same as `pokefetch greet`. Run `pokefetch --help` for
+the full option list.
+
+Global options work on either side of a subcommand and override the config file
+for that one run, without rewriting it:
 
 ```sh
 pokefetch --game crystal --size 8 --alignment center
@@ -66,97 +74,118 @@ pokefetch --game gold --game silver --game crystal show celebi
 pokefetch --game gold,crystal --size 2 --alignment top --no-icon
 ```
 
-Global overrides may appear before or after a subcommand. Run
-`pokefetch --help` for game, variant, range, artwork, layout, background, and
-icon controls. Local sprite overrides are resolved from
-`sprites/<game>/<variant>/<id>.<format>`; missing bundled or local sprites fall
-back to the pinned PokeAPI revision and are cached by game and variant under
-`$XDG_CACHE_HOME/pokefetch/sprites`.
+## Shell integration
 
-Display sizing is expressed in terminal rows. `size = 8` produces an
-eight-row image, derives a 16-column Kitty placement and a 256-pixel render
-canvas, and therefore scales consistently with the terminal's font size.
-`alignment = "center"` vertically centers whichever side is shorter—the image
-or the information text—while `alignment = "top"` starts both on the first
-row. Size ranges from one through 32 rows; at the upper bound the derived
-placement is 64 columns with a 1024-pixel render canvas. Pokefetch does not add
-synthetic empty information lines.
+To greet yourself on every new terminal, see [`shell/README.md`](shell/README.md).
+For Fish:
 
-Hardware and package-manager summaries are cached in
-`$XDG_CACHE_HOME/pokefetch/system.toml` so opening a new terminal does not
-re-run system probes on every greeting.
+```fish
+mkdir -p ~/.config/fish/functions
+ln -s (pwd)/shell/fish_greeting.fish ~/.config/fish/functions/fish_greeting.fish
+```
 
-Running `pokefetch` with no subcommand is equivalent to `pokefetch greet`.
-The greeting falls back to five plain text lines when stdout is not a terminal
-or the terminal does not advertise Kitty graphics support. Remote Ghostty
-sessions are recognized through `TERM=xterm-ghostty`, which SSH carries with
-the allocated pseudo-terminal even though it does not forward `TERM_PROGRAM`.
-`--force-kitty` remains available for other compatible terminals that cannot
-advertise themselves reliably.
+For the Ghostty dock icon and the Kitty graphics details, see
+[`docs/ghostty.md`](docs/ghostty.md).
 
-The tracked sprites originate from the
-[PokeAPI sprites repository](https://github.com/PokeAPI/sprites).
-See `docs/assets-and-distribution.md` for the boundary between source assets,
-compiled bundles, release artifacts, and future sprite-serving use cases.
+## Configure it
 
-## Sprite sets and bundles
-
-Pokefetch models artwork by game rather than by the generation in which a
-Pokemon debuted. `manifests/sets.toml` pins the upstream PokeAPI revision and
-describes each game set and its active front-facing variants. The explicit core
-roster is separate from the set's full upstream coverage; this lets a
-FireRed/LeafGreen core correctly remain Kanto even though the game belongs to
-Generation III.
-
-`manifests/bundles.toml` defines build-time content profiles. Each game has a
-compact `-core` profile and a `-full` profile containing every species that
-the upstream game set provides. `retro-master` combines every imported game,
-species, and active variant through FireRed/LeafGreen. Active static artwork
-is always background-transparent: Gen I and II use PokeAPI's transparent
-renderings, while Gen III's normal front sprites already contain alpha. Back,
-shiny, gray, and opaque originals are intentionally shelved.
-
-`bundle-assets` reads `POKEFETCH_BUNDLE` at build time and generates a compact,
-sorted runtime index. Configuration selects the game and variant independently.
-Use `game = "random"` to choose among the games present in the compiled bundle;
-Pokefetch then limits random Pokemon selection to sprites present in that game:
+Configuration is optional — without a file Pokefetch uses Red/Blue, IDs 1–151,
+size 8, centered. To change that, write
+`$XDG_CONFIG_HOME/pokefetch/config.toml` (normally
+`~/.config/pokefetch/config.toml`). See
+[`config.example.toml`](config.example.toml) for the full shape.
 
 ```toml
 [sprites]
-game = "random"
+game = "random"          # a name, "random", or a list
 variant = "front"
 range_start = 1
 range_end = 386
+
+[display]
+size = 8                 # sprite height in terminal rows, 1-32
+alignment = "center"     # or "top"
+gap = 2
+background = "#222436"   # your terminal background, for contrast correction
+
+[icon]
+enabled = true
 ```
 
-The same key accepts a curated pool. Every listed game must be present in the
+`game` also accepts a curated pool. Every listed game must be present in the
 compiled bundle:
 
 ```toml
 [sprites]
 game = ["gold", "silver", "crystal"]
-variant = "front"
-range_start = 1
-range_end = 251
 ```
 
-The legacy `variant = "red-blue"` configuration and `bundle-gen1` Cargo
-feature remain compatible during migration.
+### Sizing
 
-Every asset carries an eight-color, population-weighted palette. The extractor
-balances dominant coverage with color separation, preserves opaque white, and
-repeats real sprite colors when older artwork exposes fewer than eight. The
-greeting renderer accepts one through eight information lines and currently
-uses five, leaving three palette slots available for future rows.
+Display size is expressed in **terminal rows**, not pixels. `size = 8` produces
+an eight-row image, a 16-column Kitty placement, and a 256-pixel render canvas,
+so sprites scale consistently with your terminal's font size. The range is 1
+through 32 rows.
 
-List the catalog and bundle profiles with:
+`alignment = "center"` vertically centers whichever side is shorter — the image
+or the text. Pokefetch never adds filler lines to pad one out.
+
+### Where files go
+
+| Path | Contents |
+|------|----------|
+| `$XDG_CONFIG_HOME/pokefetch/config.toml` | your settings |
+| `$XDG_CONFIG_HOME/pokefetch/sprites/` | local sprite overrides |
+| `$XDG_CACHE_HOME/pokefetch/sprites/` | downloaded sprites |
+| `$XDG_CACHE_HOME/pokefetch/system.toml` | cached machine facts |
+| `$XDG_STATE_HOME/pokefetch/Ghostty.icns` | the generated icon |
+
+Local overrides are resolved from `sprites/<game>/<variant>/<id>.<format>` and
+win over everything else.
+
+Hardware and package summaries are cached because a greeting runs on every new
+terminal, and re-probing would make shell startup noticeably slow.
+
+### Graphics fallback
+
+The greeting prints five plain text lines when stdout is not a terminal or the
+terminal does not advertise Kitty graphics. Remote Ghostty sessions are
+recognized through `TERM=xterm-ghostty`, which SSH carries even though it drops
+`TERM_PROGRAM`. `--force-kitty` covers compatible terminals that do not
+identify themselves.
+
+## Sprite sets and bundles
+
+Pokefetch models artwork **by game**, not by the generation a Pokemon debuted
+in. That is why a FireRed/LeafGreen core is correctly Kanto even though the
+game is Generation III.
+
+- `manifests/sets.toml` pins the upstream PokeAPI revision and describes each
+  game set and its active variants.
+- `manifests/bundles.toml` defines build-time content profiles. Each game has a
+  compact `-core` profile and a `-full` profile; `retro-master` combines
+  everything through FireRed/LeafGreen.
+
+Active artwork is always background-transparent: Generations I and II use
+PokeAPI's transparent renderings, and Generation III front sprites already carry
+alpha. Back, shiny, gray, and opaque originals are intentionally shelved.
+
+Every asset carries an eight-color, population-weighted palette computed at
+build time. The extractor balances dominant coverage against color separation,
+preserves opaque white, and repeats real sprite colors when older artwork has
+fewer than eight. The renderer accepts one through eight lines and currently
+uses five.
+
+List the catalog:
 
 ```sh
 cargo run --bin pokefetch-assets -- list
 ```
 
-Asset imports require a local checkout at the exact pinned revision. Imports
-are dry runs unless `--apply` is given:
+### Importing assets
+
+Imports need a local checkout at the exact pinned revision, and are dry runs
+unless `--apply` is given:
 
 ```sh
 git clone --filter=blob:none --no-checkout \
@@ -167,25 +196,45 @@ git -C /tmp/pokeapi-sprites sparse-checkout set \
   sprites/pokemon/versions/generation-iii
 git -C /tmp/pokeapi-sprites checkout c10459b9b0129eaca5c5d9b1cac65336debb1d08
 
-cargo run --bin pokefetch-assets -- import \
-  --source /tmp/pokeapi-sprites \
-  --set crystal
-
-# After reviewing the counts:
-cargo run --bin pokefetch-assets -- import \
-  --source /tmp/pokeapi-sprites \
-  --set crystal \
-  --apply
+cargo run --bin pokefetch-assets -- import --source /tmp/pokeapi-sprites --set crystal
+# review the counts, then:
+cargo run --bin pokefetch-assets -- import --source /tmp/pokeapi-sprites --set crystal --apply
 ```
 
-Applied imports synchronize the selected game directories under `assets/sets`,
-preserve the original bytes, validate each image, calculate its SHA-256 digest
-and eight-color first-frame terminal palette, prune stale managed variants,
-and atomically update `assets/manifest.toml`.
+Applied imports preserve the original bytes, validate each image, record its
+SHA-256 digest and eight-color palette, prune stale variants, and atomically
+update `assets/manifest.toml`.
 
-Crystal also exposes `variant = "front-animated"`. Its original transparent
-GIFs are bundled and decoded, but Pokefetch currently renders the first frame
-as a static PNG because Ghostty does not yet implement Kitty graphics animation
-frames. Native playback can be added without reacquiring assets when
-[Ghostty animation support](https://github.com/ghostty-org/ghostty/issues/5255)
-lands; a background repaint loop is deliberately avoided on shell startup.
+Crystal also exposes `variant = "front-animated"`. The transparent GIFs are
+bundled and decoded, but only the first frame is rendered — Ghostty does not yet
+implement Kitty animation frames.
+
+## Develop
+
+```sh
+cargo test                                          # 78 tests, all offline
+cargo clippy --all-targets -- -D warnings
+cargo fmt --check
+cargo doc --open
+```
+
+Before committing Rust changes, also run the bundle-feature variants:
+
+```sh
+cargo test --features bundle-gen1
+cargo clippy --all-targets --features bundle-gen1 -- -D warnings
+```
+
+Lints are configured in `Cargo.toml` under `[lints]`, at `clippy::pedantic`.
+
+## Credits
+
+Sprites come from the [PokeAPI sprites repository](https://github.com/PokeAPI/sprites)
+at a pinned revision. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+Pokemon is a trademark of Nintendo, Creatures Inc., and GAME FREAK Inc. This is
+an unaffiliated personal project.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).

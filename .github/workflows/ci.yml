@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --features bundle-gen1 -- -D warnings
+      - run: cargo test
+      - run: cargo test --features bundle-gen1
+      # The flavor the release workflow builds. Cheap, and it is the only thing
+      # that exercises the full asset manifest end to end.
+      - run: POKEFETCH_BUNDLE=retro-master cargo test --features bundle-assets
+      - run: cargo doc --no-deps
