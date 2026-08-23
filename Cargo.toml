@@ -2,8 +2,15 @@
 name = "pokefetch"
 version = "0.1.0"
 edition = "2021"
-description = "Michael's palette-driven Pokemon greeting and Ghostty icon"
+authors = ["Michael Wilk"]
+description = "Palette-driven Pokemon terminal greeting and sprite renderer"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/wilks7/pokefetch"
+homepage = "https://github.com/wilks7/pokefetch"
+keywords = ["pokemon", "terminal", "sprites", "cli"]
+categories = ["command-line-interface", "command-line-utilities"]
+publish = false
 
 [features]
 default = []

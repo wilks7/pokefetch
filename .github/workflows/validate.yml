@@ -11,6 +11,12 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7.0.1
+      - name: Remove unused runner tap
+        run: |
+          tap_path="$(brew --repository)/Library/Taps/aws/homebrew-tap"
+          if [ -d "$tap_path" ]; then
+            brew untap aws/tap
+          fi
       - run: brew install shellcheck
       - run: shellcheck bootstrap/bootstrap bootstrap/doctor
       - run: cargo fmt --check

@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to package, such as v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  draft-release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - name: Remove unused runner tap
+        run: |
+          tap_path="$(brew --repository)/Library/Taps/aws/homebrew-tap"
+          if [ -d "$tap_path" ]; then
+            brew untap aws/tap
+          fi
+      - run: brew install shellcheck
+      - name: Validate release input
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | sed -n '1p')
+          test "$RELEASE_TAG" = "v$version"
+          test "$(git tag --points-at HEAD --list "$RELEASE_TAG")" = "$RELEASE_TAG"
+      - run: shellcheck bootstrap/bootstrap bootstrap/doctor release/package
+      - run: cargo fmt --check
+      - run: cargo test
+      - name: Package release bundles
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: release/package --tag "$RELEASE_TAG"
+      - name: Preserve packages with the workflow run
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: pokefetch-${{ inputs.tag }}-packages
+          path: dist/
+          if-no-files-found: error
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --draft \
+            --generate-notes \
+            --title "Pokefetch $RELEASE_TAG"

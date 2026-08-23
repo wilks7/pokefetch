@@ -18,6 +18,9 @@ bootstrap/doctor
 
 The repository's `Validate` GitHub Actions workflow is manual-only. Run it from
 the Actions tab to repeat the full bootstrap and doctor on a fresh hosted Mac.
+The separate manual `Release` workflow packages the profiles listed in
+`release/bundles.txt` and creates a draft GitHub Release from an existing
+version tag. It never publishes a release automatically.
 
 ```sh
 cargo install --path ~/Developer/pokefetch --root ~/.local --force --locked
@@ -87,6 +90,8 @@ or the terminal does not advertise Kitty graphics support.
 
 The tracked sprites originate from the
 [PokeAPI sprites repository](https://github.com/PokeAPI/sprites).
+See `docs/assets-and-distribution.md` for the boundary between source assets,
+compiled bundles, release artifacts, and future sprite-serving use cases.
 
 ## Sprite sets and bundles
 
