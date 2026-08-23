@@ -73,6 +73,15 @@ struct SpriteSet {
 struct SpriteVariant {
     id: String,
     source: PathBuf,
+    #[serde(default = "default_asset_format")]
+    format: AssetFormat,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum AssetFormat {
+    Gif,
+    Png,
 }
 
 #[derive(Debug, Deserialize)]
@@ -106,6 +115,7 @@ struct Candidate {
     set: String,
     variant: String,
     species: String,
+    format: AssetFormat,
     source: PathBuf,
     destination: PathBuf,
 }
@@ -123,10 +133,15 @@ struct AssetRecord {
     set: String,
     variant: String,
     species: String,
+    format: AssetFormat,
     path: String,
     bytes: u64,
     sha256: String,
     terminal_palette: [String; 4],
+}
+
+fn default_asset_format() -> AssetFormat {
+    AssetFormat::Png
 }
 
 fn main() {
@@ -337,8 +352,8 @@ fn import_assets(
     inventory
         .assets
         .retain(|asset| !selected_ids.contains(asset.set.as_str()));
-    for candidate in candidates {
-        inventory.assets.push(import_candidate(&candidate)?);
+    for candidate in &candidates {
+        inventory.assets.push(import_candidate(candidate)?);
     }
     inventory.assets.sort_by(|left, right| {
         (&left.set, &left.variant, &left.species).cmp(&(&right.set, &right.variant, &right.species))
@@ -350,12 +365,50 @@ fn import_assets(
     inventory
         .source_revision
         .clone_from(&catalog.source.revision);
+    let expected = inventory
+        .assets
+        .iter()
+        .map(|asset| PathBuf::from(&asset.path))
+        .collect::<BTreeSet<_>>();
+    let mut pruned = 0;
+    for set in &selected {
+        pruned += prune_tree(&Path::new("assets/sets").join(&set.id), &expected)?;
+    }
     write_inventory(inventory_path, &inventory)?;
     println!(
         "updated {INVENTORY_PATH} with {} assets",
         inventory.assets.len()
     );
+    if pruned > 0 {
+        println!("pruned {pruned} stale imported assets");
+    }
     Ok(())
+}
+
+fn prune_tree(path: &Path, expected: &BTreeSet<PathBuf>) -> Result<usize> {
+    if !path.is_dir() {
+        return Ok(0);
+    }
+    let mut removed = 0;
+    for entry in std::fs::read_dir(path).with_context(|| format!("reading {}", path.display()))? {
+        let entry = entry.with_context(|| format!("reading {} entry", path.display()))?;
+        let child = entry.path();
+        if child.is_dir() {
+            removed += prune_tree(&child, expected)?;
+            if std::fs::read_dir(&child)
+                .with_context(|| format!("checking {}", child.display()))?
+                .next()
+                .is_none()
+            {
+                std::fs::remove_dir(&child)
+                    .with_context(|| format!("removing empty {}", child.display()))?;
+            }
+        } else if !expected.contains(&child) {
+            std::fs::remove_file(&child).with_context(|| format!("pruning {}", child.display()))?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
 }
 
 fn validate_checkout(source_checkout: &Path, catalog: &SetCatalog) -> Result<()> {
@@ -419,7 +472,7 @@ fn collect_candidates(
                 let entry =
                     entry.with_context(|| format!("reading {} entry", source_dir.display()))?;
                 let path = entry.path();
-                let Some((dex_id, species)) = species_key(&path) else {
+                let Some((dex_id, species)) = species_key(&path, variant.format) else {
                     continue;
                 };
                 if dex_id > set.dex_end {
@@ -433,6 +486,7 @@ fn collect_candidates(
                     set: set.id.clone(),
                     variant: variant.id.clone(),
                     species,
+                    format: variant.format,
                     source: path,
                     destination: Path::new("assets/sets")
                         .join(&set.id)
@@ -448,8 +502,12 @@ fn collect_candidates(
     Ok(candidates)
 }
 
-fn species_key(path: &Path) -> Option<(u16, String)> {
-    if path.extension()?.to_str()? != "png" {
+fn species_key(path: &Path, format: AssetFormat) -> Option<(u16, String)> {
+    let expected = match format {
+        AssetFormat::Gif => "gif",
+        AssetFormat::Png => "png",
+    };
+    if path.extension()?.to_str()? != expected {
         return None;
     }
     let species = path.file_stem()?.to_str()?.to_string();
@@ -473,15 +531,25 @@ fn print_plan(candidates: &[Candidate]) {
 fn import_candidate(candidate: &Candidate) -> Result<AssetRecord> {
     let bytes = std::fs::read(&candidate.source)
         .with_context(|| format!("reading {}", candidate.source.display()))?;
-    let image = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
+    let image_format = match candidate.format {
+        AssetFormat::Gif => image::ImageFormat::Gif,
+        AssetFormat::Png => image::ImageFormat::Png,
+    };
+    let image = image::load_from_memory_with_format(&bytes, image_format)
         .with_context(|| format!("validating {}", candidate.source.display()))?
         .to_rgba8();
+    anyhow::ensure!(
+        image.pixels().any(|pixel| pixel[3] < u8::MAX),
+        "{} has no transparent pixels",
+        candidate.source.display()
+    );
     atomic_write(&candidate.destination, &bytes)?;
     let colors = palette::extract(&image, TERMINAL_BACKGROUND);
     Ok(AssetRecord {
         set: candidate.set.clone(),
         variant: candidate.variant.clone(),
         species: candidate.species.clone(),
+        format: candidate.format,
         path: candidate.destination.to_string_lossy().into_owned(),
         bytes: bytes.len() as u64,
         sha256: format!("{:x}", Sha256::digest(&bytes)),
@@ -525,7 +593,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
 mod tests {
     use super::{
         load_bundle_catalog, load_catalog, parse_dex_range, species_key, validate_bundles,
-        validate_catalog,
+        validate_catalog, AssetFormat,
     };
     use std::path::Path;
 
@@ -553,13 +621,17 @@ mod tests {
     #[test]
     fn recognizes_numeric_species_and_forms() {
         assert_eq!(
-            species_key(Path::new("25.png")),
+            species_key(Path::new("25.png"), AssetFormat::Png),
             Some((25, "25".to_string()))
         );
         assert_eq!(
-            species_key(Path::new("201-a.png")),
+            species_key(Path::new("201-a.png"), AssetFormat::Png),
             Some((201, "201-a".to_string()))
         );
-        assert_eq!(species_key(Path::new("README.md")), None);
+        assert_eq!(
+            species_key(Path::new("25.gif"), AssetFormat::Gif),
+            Some((25, "25".to_string()))
+        );
+        assert_eq!(species_key(Path::new("README.md"), AssetFormat::Png), None);
     }
 }

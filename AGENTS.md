@@ -5,6 +5,9 @@
   system or package-manager probes must use durable local caches.
 - Preserve source sprite pixels. Scale rendered sprites with nearest-neighbor
   filtering and do not hand-edit imported upstream assets.
+- Keep active greeting bundles to transparent, front-facing artwork. Back,
+  shiny, gray, and opaque source variants are intentionally shelved until
+  explicitly revisited.
 - Model sprite sets by game/version rather than by a Pokemon's debut
   generation. Selection policy (one game set, introduced-only, or debut set)
   is separate from bundle contents.

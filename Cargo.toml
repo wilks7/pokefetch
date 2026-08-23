@@ -8,6 +8,7 @@ license = "MIT"
 [features]
 default = []
 bundle-gen1 = []
+bundle-assets = []
 
 [dependencies]
 anyhow = "1"
@@ -15,7 +16,7 @@ base64 = "0.22"
 clap = { version = "4.5", features = ["derive"] }
 hostname = "0.4"
 icns = { version = "0.4", default-features = false, features = ["pngio"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["gif", "png"] }
 rand = "0.9"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"

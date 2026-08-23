@@ -12,13 +12,20 @@ pokefetch palette eevee
 pokefetch icon 25 --output /tmp/Pikachu.icns
 ```
 
-For an offline build with the tracked first-generation sprites and their
-precomputed terminal palettes embedded in the binary, opt into the feature
-when installing:
+For an offline build, choose a named profile and embed its imported sprites
+and precomputed terminal palettes:
 
 ```sh
-cargo install --path ~/Developer/pokefetch --root ~/.local --force --locked --features bundle-gen1
+POKEFETCH_BUNDLE=red-blue-core \
+  cargo install --path ~/Developer/pokefetch --root ~/.local --force --locked \
+  --features bundle-assets
+
+pokefetch bundle
 ```
+
+Use `POKEFETCH_BUNDLE=retro-master` for every imported game through
+FireRed/LeafGreen. The current corpus produces an approximately 6 MB release
+binary for `retro-master`, compared with 3.5 MB for `red-blue-core`.
 
 The default greeting chooses one of the original 151 Pokemon, displays its
 `red-blue` sprite through the Kitty graphics protocol, colors five compact
@@ -29,9 +36,9 @@ command remains available everywhere.
 
 Personal configuration lives at `$XDG_CONFIG_HOME/pokefetch/config.toml`
 (normally `~/.config/pokefetch/config.toml`); `config.example.toml` documents
-the supported shape. Project sprites are resolved from
-`sprites/<variant>/<id>.png`; missing sprites fall back to PokeAPI's public
-sprite repository and are cached by variant under
+the supported shape. Local overrides are resolved from
+`sprites/<game>/<variant>/<id>.<format>`; missing bundled or local sprites fall
+back to the pinned PokeAPI revision and are cached by game and variant under
 `$XDG_CACHE_HOME/pokefetch/sprites`.
 
 Hardware and package-manager summaries are cached in
@@ -49,23 +56,32 @@ The tracked sprites originate from the
 
 Pokefetch models artwork by game rather than by the generation in which a
 Pokemon debuted. `manifests/sets.toml` pins the upstream PokeAPI revision and
-describes each game set and its available PNG variants. The explicit core
+describes each game set and its active front-facing variants. The explicit core
 roster is separate from the set's full upstream coverage; this lets a
 FireRed/LeafGreen core correctly remain Kanto even though the game belongs to
 Generation III.
 
 `manifests/bundles.toml` defines build-time content profiles. Each game has a
 compact `-core` profile and a `-full` profile containing every species that
-the upstream game set provides. `retro-master` combines every cataloged game,
-species, and PNG variant through FireRed/LeafGreen. Bundle contents and
-runtime selection policy are intentionally independent, so a future client
-can choose games, front/back artwork, and shiny odds from whatever its binary
-contains.
+the upstream game set provides. `retro-master` combines every imported game,
+species, and active variant through FireRed/LeafGreen. Active static artwork
+is always background-transparent: Gen I and II use PokeAPI's transparent
+renderings, while Gen III's normal front sprites already contain alpha. Back,
+shiny, gray, and opaque originals are intentionally shelved.
 
-The current `bundle-gen1` Cargo feature remains the working Red/Blue
-transparent-sprite bundle while the new profiles are connected to the runtime.
-The manifests and importer establish that next pipeline without changing the
-interactive greeting yet.
+`bundle-assets` reads `POKEFETCH_BUNDLE` at build time and generates a compact,
+sorted runtime index. Configuration selects the game and variant independently:
+
+```toml
+[sprites]
+game = "crystal"
+variant = "front"
+range_start = 152
+range_end = 251
+```
+
+The legacy `variant = "red-blue"` configuration and `bundle-gen1` Cargo
+feature remain compatible during migration.
 
 List the catalog and bundle profiles with:
 
@@ -96,7 +112,14 @@ cargo run --bin pokefetch-assets -- import \
   --apply
 ```
 
-Applied imports preserve the original bytes under `assets/sets`, validate
-each PNG, calculate its SHA-256 digest and terminal palette, and atomically
-update `assets/manifest.toml`. Crystal's animated GIFs are not part of the
-PNG-first catalog yet.
+Applied imports synchronize the selected game directories under `assets/sets`,
+preserve the original bytes, validate each image, calculate its SHA-256 digest
+and first-frame terminal palette, prune stale managed variants, and atomically
+update `assets/manifest.toml`.
+
+Crystal also exposes `variant = "front-animated"`. Its original transparent
+GIFs are bundled and decoded, but Pokefetch currently renders the first frame
+as a static PNG because Ghostty does not yet implement Kitty graphics animation
+frames. Native playback can be added without reacquiring assets when
+[Ghostty animation support](https://github.com/ghostty-org/ghostty/issues/5255)
+lands; a background repaint loop is deliberately avoided on shell startup.

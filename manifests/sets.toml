@@ -14,27 +14,7 @@ core_ranges = ["1-151"]
 
 [[sets.variants]]
 id = "front"
-source = "."
-
-[[sets.variants]]
-id = "back"
-source = "back"
-
-[[sets.variants]]
-id = "front-gray"
-source = "gray"
-
-[[sets.variants]]
-id = "back-gray"
-source = "back/gray"
-
-[[sets.variants]]
-id = "front-transparent"
 source = "transparent"
-
-[[sets.variants]]
-id = "back-transparent"
-source = "transparent/back"
 
 [[sets]]
 id = "yellow"
@@ -45,35 +25,7 @@ core_ranges = ["1-151"]
 
 [[sets.variants]]
 id = "front"
-source = "."
-
-[[sets.variants]]
-id = "back"
-source = "back"
-
-[[sets.variants]]
-id = "front-gbc"
-source = "gbc"
-
-[[sets.variants]]
-id = "back-gbc"
-source = "back/gbc"
-
-[[sets.variants]]
-id = "front-gray"
-source = "gray"
-
-[[sets.variants]]
-id = "back-gray"
-source = "back/gray"
-
-[[sets.variants]]
-id = "front-transparent"
 source = "transparent"
-
-[[sets.variants]]
-id = "back-transparent"
-source = "transparent/back"
 
 [[sets]]
 id = "gold"
@@ -84,22 +36,6 @@ core_ranges = ["152-251"]
 
 [[sets.variants]]
 id = "front"
-source = "."
-
-[[sets.variants]]
-id = "back"
-source = "back"
-
-[[sets.variants]]
-id = "front-shiny"
-source = "shiny"
-
-[[sets.variants]]
-id = "back-shiny"
-source = "back/shiny"
-
-[[sets.variants]]
-id = "front-transparent"
 source = "transparent"
 
 [[sets]]
@@ -111,22 +47,6 @@ core_ranges = ["152-251"]
 
 [[sets.variants]]
 id = "front"
-source = "."
-
-[[sets.variants]]
-id = "back"
-source = "back"
-
-[[sets.variants]]
-id = "front-shiny"
-source = "shiny"
-
-[[sets.variants]]
-id = "back-shiny"
-source = "back/shiny"
-
-[[sets.variants]]
-id = "front-transparent"
 source = "transparent"
 
 [[sets]]
@@ -138,35 +58,12 @@ core_ranges = ["152-251"]
 
 [[sets.variants]]
 id = "front"
-source = "."
-
-[[sets.variants]]
-id = "back"
-source = "back"
-
-[[sets.variants]]
-id = "front-shiny"
-source = "shiny"
-
-[[sets.variants]]
-id = "back-shiny"
-source = "back/shiny"
-
-[[sets.variants]]
-id = "front-transparent"
 source = "transparent"
 
 [[sets.variants]]
-id = "back-transparent"
-source = "transparent/back"
-
-[[sets.variants]]
-id = "front-transparent-shiny"
-source = "transparent/shiny"
-
-[[sets.variants]]
-id = "back-transparent-shiny"
-source = "transparent/back/shiny"
+id = "front-animated"
+source = "animated"
+format = "gif"
 
 [[sets]]
 id = "ruby-sapphire"
@@ -179,18 +76,6 @@ core_ranges = ["252-386"]
 id = "front"
 source = "."
 
-[[sets.variants]]
-id = "back"
-source = "back"
-
-[[sets.variants]]
-id = "front-shiny"
-source = "shiny"
-
-[[sets.variants]]
-id = "back-shiny"
-source = "back/shiny"
-
 [[sets]]
 id = "emerald"
 generation = 3
@@ -202,10 +87,6 @@ core_ranges = ["252-386"]
 id = "front"
 source = "."
 
-[[sets.variants]]
-id = "front-shiny"
-source = "shiny"
-
 [[sets]]
 id = "firered-leafgreen"
 generation = 3
@@ -216,15 +97,3 @@ core_ranges = ["1-151"]
 [[sets.variants]]
 id = "front"
 source = "."
-
-[[sets.variants]]
-id = "back"
-source = "back"
-
-[[sets.variants]]
-id = "front-shiny"
-source = "shiny"
-
-[[sets.variants]]
-id = "back-shiny"
-source = "back/shiny"

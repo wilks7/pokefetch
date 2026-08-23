@@ -1,5 +1,6 @@
 [sprites]
-variant = "red-blue"
+game = "red-blue"
+variant = "front"
 artwork = false
 range_start = 1
 range_end = 151

@@ -57,6 +57,8 @@ enum Command {
         #[arg(long, default_value_t = 288)]
         size: u32,
     },
+    /// Print the sprite bundle profile compiled into this binary.
+    Bundle,
 }
 
 fn main() {
@@ -98,7 +100,7 @@ fn run() -> Result<()> {
         Command::Palette { pokemon } => {
             let pokemon = pokemon::resolve(pokemon.as_deref(), &config.sprites)?;
             let source = load_source(&store, &pokemon)?;
-            let colors = sprite::bundled_palette(pokemon.id, &store.variant())
+            let colors = sprite::bundled_palette(pokemon.id, &store.game(), &store.variant())
                 .unwrap_or_else(|| palette::extract(&source, &config.display.background));
             for color in colors {
                 println!("{}", color.hex());
@@ -127,6 +129,7 @@ fn run() -> Result<()> {
             image_ops::save_png(&rendered, &output)?;
             println!("{}", output.display());
         }
+        Command::Bundle => println!("{}", sprite::bundle_profile()),
     }
     Ok(())
 }
@@ -138,7 +141,7 @@ fn show(
     force_kitty: bool,
 ) -> Result<[palette::Color; 4]> {
     let source = load_source(store, pokemon)?;
-    let colors = sprite::bundled_palette(pokemon.id, &store.variant())
+    let colors = sprite::bundled_palette(pokemon.id, &store.game(), &store.variant())
         .unwrap_or_else(|| palette::extract(&source, &config.display.background));
     let png = if terminal::should_render_image(force_kitty) {
         let rendered = image_ops::render_square(&source, config.display.canvas_pixels, 3);
@@ -149,7 +152,7 @@ fn show(
     terminal::print_greeting(
         &png,
         pokemon,
-        &store.variant(),
+        &store.label(),
         &colors,
         &config.display,
         force_kitty,

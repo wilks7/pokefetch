@@ -1,31 +1,25 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use rand::Rng;
 
 use crate::config::{cache_dir, SpriteConfig};
 
-#[cfg(feature = "bundle-gen1")]
 mod bundled {
     include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
 }
 
-#[cfg(feature = "bundle-gen1")]
-pub fn bundled_palette(id: u16, variant: &str) -> Option<[crate::palette::Color; 4]> {
-    if variant != "red-blue" {
-        return None;
-    }
-    bundled::palette(id)
+pub fn bundled_palette(id: u16, game: &str, variant: &str) -> Option<[crate::palette::Color; 4]> {
+    bundled::palette(game, variant, &id.to_string())
         .map(|colors| colors.map(|(red, green, blue)| crate::palette::Color { red, green, blue }))
 }
 
-#[cfg(not(feature = "bundle-gen1"))]
-pub fn bundled_palette(_id: u16, _variant: &str) -> Option<[crate::palette::Color; 4]> {
-    None
+pub fn bundle_profile() -> &'static str {
+    bundled::PROFILE
 }
 
 const SPRITE_BASE_URL: &str =
-    "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
+    "https://raw.githubusercontent.com/PokeAPI/sprites/c10459b9b0129eaca5c5d9b1cac65336debb1d08/sprites/pokemon";
 
 pub struct SpriteStore<'a> {
     config: &'a SpriteConfig,
@@ -38,36 +32,37 @@ impl<'a> SpriteStore<'a> {
     }
 
     pub fn resolve(&self, id: u16) -> Result<PathBuf> {
+        let game = self.game();
         let variant = self.variant();
+        let extension = extension_for(&variant);
         let local = self
             .config_dir
             .join("sprites")
+            .join(&game)
             .join(&variant)
-            .join(format!("{id}.png"));
+            .join(format!("{id}.{extension}"));
         if is_populated(&local) {
             return Ok(local);
         }
 
         let cache = cache_dir()
             .join("sprites")
+            .join(&game)
             .join(&variant)
-            .join(format!("{id}.png"));
+            .join(format!("{id}.{extension}"));
         if is_populated(&cache) {
             return Ok(cache);
         }
 
-        #[cfg(feature = "bundle-gen1")]
-        if variant == "red-blue" {
-            if let Some(bytes) = bundled::sprite(id) {
-                atomic_write(&cache, bytes)?;
-                return Ok(cache);
-            }
+        if let Some(bytes) = bundled::sprite(&game, &variant, &id.to_string()) {
+            atomic_write(&cache, bytes)?;
+            return Ok(cache);
         }
 
         let primary_url = self.url(id)?;
         let bytes = match download(&primary_url) {
             Ok(bytes) => bytes,
-            Err(primary_error) if variant != "default" => {
+            Err(primary_error) if extension == "png" && variant != "default" => {
                 let fallback_url = format!("{SPRITE_BASE_URL}/{id}.png");
                 download(&fallback_url).with_context(|| {
                     format!(
@@ -77,8 +72,7 @@ impl<'a> SpriteStore<'a> {
             }
             Err(error) => return Err(error),
         };
-        image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
-            .context("downloaded sprite was not a valid PNG")?;
+        image::load_from_memory(&bytes).context("downloaded sprite was not a valid image")?;
         atomic_write(&cache, &bytes)?;
         Ok(cache)
     }
@@ -86,10 +80,27 @@ impl<'a> SpriteStore<'a> {
     pub fn variant(&self) -> String {
         if self.config.artwork {
             "official-artwork".to_string()
+        } else if known_game(self.config.variant.trim()).is_some() {
+            preferred_front(self.config.variant.trim()).to_string()
         } else if self.config.variant.trim().is_empty() {
-            "default".to_string()
+            preferred_front(&self.game()).to_string()
         } else {
             self.config.variant.trim().to_string()
+        }
+    }
+
+    pub fn game(&self) -> String {
+        known_game(self.config.variant.trim())
+            .or_else(|| known_game(self.config.game.trim()))
+            .unwrap_or("red-blue")
+            .to_string()
+    }
+
+    pub fn label(&self) -> String {
+        if self.config.artwork {
+            "official-artwork".to_string()
+        } else {
+            format!("{}/{}", self.game(), self.variant())
         }
     }
 
@@ -98,18 +109,46 @@ impl<'a> SpriteStore<'a> {
             return Ok(format!("{SPRITE_BASE_URL}/other/official-artwork/{id}.png"));
         }
 
-        let variant = self.config.variant.trim();
-        if variant.is_empty() || variant == "default" {
-            return Ok(format!("{SPRITE_BASE_URL}/{id}.png"));
-        }
-        let Some(generation) = generation_for(variant) else {
-            bail!(
-                "no PokeAPI generation mapping for sprite variant {variant:?}; add a local sprite or choose a known variant"
-            );
+        let game = self.game();
+        let variant = self.variant();
+        let generation = generation_for(&game).expect("validated game mapping");
+        let source = source_for_variant(&game, &variant)
+            .with_context(|| format!("no PokeAPI source mapping for sprite variant {variant:?}"))?;
+        let suffix = if source.is_empty() {
+            String::new()
+        } else {
+            format!("/{source}")
         };
         Ok(format!(
-            "{SPRITE_BASE_URL}/versions/{generation}/{variant}/transparent/{id}.png"
+            "{SPRITE_BASE_URL}/versions/{generation}/{game}{suffix}/{id}.{}",
+            extension_for(&variant)
         ))
+    }
+}
+
+fn known_game(value: &str) -> Option<&str> {
+    generation_for(value).map(|_| value)
+}
+
+fn preferred_front(game: &str) -> &'static str {
+    let _ = game;
+    "front"
+}
+
+fn extension_for(variant: &str) -> &'static str {
+    if variant.contains("animated") {
+        "gif"
+    } else {
+        "png"
+    }
+}
+
+fn source_for_variant(game: &str, variant: &str) -> Option<&'static str> {
+    match (game, variant) {
+        ("red-blue" | "yellow" | "gold" | "silver" | "crystal", "front") => Some("transparent"),
+        (_, "front") => Some(""),
+        (_, "front-animated") => Some("animated"),
+        _ => None,
     }
 }
 
@@ -174,12 +213,28 @@ fn is_populated(path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::generation_for;
+    use super::{generation_for, preferred_front, source_for_variant, SpriteStore};
+    use crate::config::SpriteConfig;
+    use std::path::Path;
 
     #[test]
     fn maps_the_checked_in_sprite_variant() {
         assert_eq!(generation_for("red-blue"), Some("generation-i"));
         assert_eq!(generation_for("crystal"), Some("generation-ii"));
         assert_eq!(generation_for("made-up"), None);
+    }
+
+    #[test]
+    fn maps_asset_variants_and_legacy_game_configuration() {
+        assert_eq!(source_for_variant("crystal", "front"), Some("transparent"));
+        assert_eq!(source_for_variant("emerald", "front"), Some(""));
+        assert_eq!(preferred_front("emerald"), "front");
+        let config = SpriteConfig {
+            variant: "crystal".to_string(),
+            ..SpriteConfig::default()
+        };
+        let store = SpriteStore::new(&config, Path::new("."));
+        assert_eq!(store.game(), "crystal");
+        assert_eq!(store.variant(), "front");
     }
 }
