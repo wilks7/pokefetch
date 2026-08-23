@@ -88,7 +88,11 @@ re-run system probes on every greeting.
 
 Running `pokefetch` with no subcommand is equivalent to `pokefetch greet`.
 The greeting falls back to five plain text lines when stdout is not a terminal
-or the terminal does not advertise Kitty graphics support.
+or the terminal does not advertise Kitty graphics support. Remote Ghostty
+sessions are recognized through `TERM=xterm-ghostty`, which SSH carries with
+the allocated pseudo-terminal even though it does not forward `TERM_PROGRAM`.
+`--force-kitty` remains available for other compatible terminals that cannot
+advertise themselves reliably.
 
 The tracked sprites originate from the
 [PokeAPI sprites repository](https://github.com/PokeAPI/sprites).

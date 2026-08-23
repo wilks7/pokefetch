@@ -92,10 +92,14 @@ fn greeting_layout(line_count: usize, display: &DisplayConfig) -> Result<Greetin
 }
 
 pub fn supports_kitty_graphics() -> bool {
-    matches!(
-        std::env::var("TERM_PROGRAM").as_deref(),
-        Ok("ghostty") | Ok("kitty") | Ok("WezTerm")
-    ) || std::env::var_os("KITTY_WINDOW_ID").is_some()
+    let term_program = std::env::var("TERM_PROGRAM").ok();
+    let term = std::env::var("TERM").ok();
+    kitty_terminal_name(
+        term_program.as_deref(),
+        term.as_deref(),
+        std::env::var_os("KITTY_WINDOW_ID").is_some(),
+    )
+    .is_some()
 }
 
 pub fn should_render_image(force_kitty: bool) -> bool {
@@ -106,6 +110,44 @@ pub fn is_local_ghostty() -> bool {
     std::env::var("TERM_PROGRAM").as_deref() == Ok("ghostty")
         && std::env::var_os("SSH_CONNECTION").is_none()
         && std::env::var_os("SSH_TTY").is_none()
+}
+
+fn kitty_terminal_name(
+    term_program: Option<&str>,
+    term: Option<&str>,
+    kitty_window: bool,
+) -> Option<&'static str> {
+    match term_program {
+        Some("ghostty") => return Some("Ghostty"),
+        Some("kitty") => return Some("Kitty"),
+        Some("WezTerm") => return Some("WezTerm"),
+        _ => {}
+    }
+    if kitty_window {
+        return Some("Kitty");
+    }
+    match term {
+        Some("xterm-ghostty") => Some("Ghostty"),
+        Some("xterm-kitty") => Some("Kitty"),
+        _ => None,
+    }
+}
+
+fn terminal_label() -> String {
+    let term_program = std::env::var("TERM_PROGRAM").ok();
+    let term = std::env::var("TERM").ok();
+    kitty_terminal_name(
+        term_program.as_deref(),
+        term.as_deref(),
+        std::env::var_os("KITTY_WINDOW_ID").is_some(),
+    )
+    .map(str::to_owned)
+    .or_else(|| {
+        term_program
+            .filter(|value| !value.is_empty())
+            .map(|value| capitalize(&value))
+    })
+    .unwrap_or_else(|| "Terminal".to_string())
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -199,11 +241,7 @@ fn information_lines(pokemon: &Pokemon, variant: &str) -> Vec<String> {
         .and_then(|value| value.rsplit('/').next().map(str::to_owned))
         .map(|value| capitalize(&value))
         .unwrap_or_else(|| "Shell".to_string());
-    let terminal = std::env::var("TERM_PROGRAM")
-        .ok()
-        .filter(|value| !value.is_empty())
-        .map(|value| capitalize(&value))
-        .unwrap_or_else(|| "Terminal".to_string());
+    let terminal = terminal_label();
     let snapshot = system_snapshot();
 
     vec![
@@ -331,7 +369,7 @@ fn capitalize(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{greeting_layout, GreetingLayout};
+    use super::{greeting_layout, kitty_terminal_name, GreetingLayout};
     use crate::config::{Alignment, DisplayConfig};
 
     #[test]
@@ -383,6 +421,22 @@ mod tests {
                 image_offset: 0,
                 text_offset: 0,
             }
+        );
+    }
+
+    #[test]
+    fn recognizes_graphics_terminals_across_ssh() {
+        assert_eq!(
+            kitty_terminal_name(None, Some("xterm-ghostty"), false),
+            Some("Ghostty")
+        );
+        assert_eq!(
+            kitty_terminal_name(None, Some("xterm-kitty"), false),
+            Some("Kitty")
+        );
+        assert_eq!(
+            kitty_terminal_name(None, Some("xterm-256color"), false),
+            None
         );
     }
 }
