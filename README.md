@@ -44,3 +44,59 @@ or the terminal does not advertise Kitty graphics support.
 
 The tracked sprites originate from the
 [PokeAPI sprites repository](https://github.com/PokeAPI/sprites).
+
+## Sprite sets and bundles
+
+Pokefetch models artwork by game rather than by the generation in which a
+Pokemon debuted. `manifests/sets.toml` pins the upstream PokeAPI revision and
+describes each game set and its available PNG variants. The explicit core
+roster is separate from the set's full upstream coverage; this lets a
+FireRed/LeafGreen core correctly remain Kanto even though the game belongs to
+Generation III.
+
+`manifests/bundles.toml` defines build-time content profiles. Each game has a
+compact `-core` profile and a `-full` profile containing every species that
+the upstream game set provides. `retro-master` combines every cataloged game,
+species, and PNG variant through FireRed/LeafGreen. Bundle contents and
+runtime selection policy are intentionally independent, so a future client
+can choose games, front/back artwork, and shiny odds from whatever its binary
+contains.
+
+The current `bundle-gen1` Cargo feature remains the working Red/Blue
+transparent-sprite bundle while the new profiles are connected to the runtime.
+The manifests and importer establish that next pipeline without changing the
+interactive greeting yet.
+
+List the catalog and bundle profiles with:
+
+```sh
+cargo run --bin pokefetch-assets -- list
+```
+
+Asset imports require a local checkout at the exact pinned revision. Imports
+are dry runs unless `--apply` is given:
+
+```sh
+git clone --filter=blob:none --no-checkout \
+  https://github.com/PokeAPI/sprites.git /tmp/pokeapi-sprites
+git -C /tmp/pokeapi-sprites sparse-checkout set \
+  sprites/pokemon/versions/generation-i \
+  sprites/pokemon/versions/generation-ii \
+  sprites/pokemon/versions/generation-iii
+git -C /tmp/pokeapi-sprites checkout c10459b9b0129eaca5c5d9b1cac65336debb1d08
+
+cargo run --bin pokefetch-assets -- import \
+  --source /tmp/pokeapi-sprites \
+  --set crystal
+
+# After reviewing the counts:
+cargo run --bin pokefetch-assets -- import \
+  --source /tmp/pokeapi-sprites \
+  --set crystal \
+  --apply
+```
+
+Applied imports preserve the original bytes under `assets/sets`, validate
+each PNG, calculate its SHA-256 digest and terminal palette, and atomically
+update `assets/manifest.toml`. Crystal's animated GIFs are not part of the
+PNG-first catalog yet.

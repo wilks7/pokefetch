@@ -1,0 +1,82 @@
+schema_version = 1
+
+# A bundle controls build-time contents. Runtime selection policy remains a
+# separate concern. `core` uses the owning set's explicit core_ranges; `full`
+# includes every imported species the upstream game set actually provides.
+
+[[bundles]]
+id = "red-blue-core"
+members = [{ set = "red-blue", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "red-blue-full"
+members = [{ set = "red-blue", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "yellow-core"
+members = [{ set = "yellow", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "yellow-full"
+members = [{ set = "yellow", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "gold-core"
+members = [{ set = "gold", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "gold-full"
+members = [{ set = "gold", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "silver-core"
+members = [{ set = "silver", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "silver-full"
+members = [{ set = "silver", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "crystal-core"
+members = [{ set = "crystal", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "crystal-full"
+members = [{ set = "crystal", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "ruby-sapphire-core"
+members = [{ set = "ruby-sapphire", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "ruby-sapphire-full"
+members = [{ set = "ruby-sapphire", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "emerald-core"
+members = [{ set = "emerald", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "emerald-full"
+members = [{ set = "emerald", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "firered-leafgreen-core"
+members = [{ set = "firered-leafgreen", scope = "core", variants = ["*"] }]
+
+[[bundles]]
+id = "firered-leafgreen-full"
+members = [{ set = "firered-leafgreen", scope = "full", variants = ["*"] }]
+
+[[bundles]]
+id = "retro-master"
+members = [
+  { set = "red-blue", scope = "full", variants = ["*"] },
+  { set = "yellow", scope = "full", variants = ["*"] },
+  { set = "gold", scope = "full", variants = ["*"] },
+  { set = "silver", scope = "full", variants = ["*"] },
+  { set = "crystal", scope = "full", variants = ["*"] },
+  { set = "ruby-sapphire", scope = "full", variants = ["*"] },
+  { set = "emerald", scope = "full", variants = ["*"] },
+  { set = "firered-leafgreen", scope = "full", variants = ["*"] },
+]

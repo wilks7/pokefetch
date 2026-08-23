@@ -1,0 +1,230 @@
+schema_version = 1
+
+[source]
+repository = "https://github.com/PokeAPI/sprites.git"
+revision = "c10459b9b0129eaca5c5d9b1cac65336debb1d08"
+root = "sprites/pokemon/versions"
+
+[[sets]]
+id = "red-blue"
+generation = 1
+source = "generation-i/red-blue"
+dex_end = 151
+core_ranges = ["1-151"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "back"
+source = "back"
+
+[[sets.variants]]
+id = "front-gray"
+source = "gray"
+
+[[sets.variants]]
+id = "back-gray"
+source = "back/gray"
+
+[[sets.variants]]
+id = "front-transparent"
+source = "transparent"
+
+[[sets.variants]]
+id = "back-transparent"
+source = "transparent/back"
+
+[[sets]]
+id = "yellow"
+generation = 1
+source = "generation-i/yellow"
+dex_end = 151
+core_ranges = ["1-151"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "back"
+source = "back"
+
+[[sets.variants]]
+id = "front-gbc"
+source = "gbc"
+
+[[sets.variants]]
+id = "back-gbc"
+source = "back/gbc"
+
+[[sets.variants]]
+id = "front-gray"
+source = "gray"
+
+[[sets.variants]]
+id = "back-gray"
+source = "back/gray"
+
+[[sets.variants]]
+id = "front-transparent"
+source = "transparent"
+
+[[sets.variants]]
+id = "back-transparent"
+source = "transparent/back"
+
+[[sets]]
+id = "gold"
+generation = 2
+source = "generation-ii/gold"
+dex_end = 251
+core_ranges = ["152-251"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "back"
+source = "back"
+
+[[sets.variants]]
+id = "front-shiny"
+source = "shiny"
+
+[[sets.variants]]
+id = "back-shiny"
+source = "back/shiny"
+
+[[sets.variants]]
+id = "front-transparent"
+source = "transparent"
+
+[[sets]]
+id = "silver"
+generation = 2
+source = "generation-ii/silver"
+dex_end = 251
+core_ranges = ["152-251"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "back"
+source = "back"
+
+[[sets.variants]]
+id = "front-shiny"
+source = "shiny"
+
+[[sets.variants]]
+id = "back-shiny"
+source = "back/shiny"
+
+[[sets.variants]]
+id = "front-transparent"
+source = "transparent"
+
+[[sets]]
+id = "crystal"
+generation = 2
+source = "generation-ii/crystal"
+dex_end = 251
+core_ranges = ["152-251"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "back"
+source = "back"
+
+[[sets.variants]]
+id = "front-shiny"
+source = "shiny"
+
+[[sets.variants]]
+id = "back-shiny"
+source = "back/shiny"
+
+[[sets.variants]]
+id = "front-transparent"
+source = "transparent"
+
+[[sets.variants]]
+id = "back-transparent"
+source = "transparent/back"
+
+[[sets.variants]]
+id = "front-transparent-shiny"
+source = "transparent/shiny"
+
+[[sets.variants]]
+id = "back-transparent-shiny"
+source = "transparent/back/shiny"
+
+[[sets]]
+id = "ruby-sapphire"
+generation = 3
+source = "generation-iii/ruby-sapphire"
+dex_end = 386
+core_ranges = ["252-386"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "back"
+source = "back"
+
+[[sets.variants]]
+id = "front-shiny"
+source = "shiny"
+
+[[sets.variants]]
+id = "back-shiny"
+source = "back/shiny"
+
+[[sets]]
+id = "emerald"
+generation = 3
+source = "generation-iii/emerald"
+dex_end = 386
+core_ranges = ["252-386"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "front-shiny"
+source = "shiny"
+
+[[sets]]
+id = "firered-leafgreen"
+generation = 3
+source = "generation-iii/firered-leafgreen"
+dex_end = 386
+core_ranges = ["1-151"]
+
+[[sets.variants]]
+id = "front"
+source = "."
+
+[[sets.variants]]
+id = "back"
+source = "back"
+
+[[sets.variants]]
+id = "front-shiny"
+source = "shiny"
+
+[[sets.variants]]
+id = "back-shiny"
+source = "back/shiny"
