@@ -15,8 +15,8 @@ its storage model the permanent architecture for every future sprite use.
 - `manifests/bundles.toml` selects source assets for a compiled executable.
 
 Which profile a given build embeds is chosen at build time by
-`POKEFETCH_BUNDLE`, not by a separate release manifest. The release workflow
-builds one flavor (`retro-master`); anything else is a local build.
+`POKEFETCH_BUNDLE`, not by a separate release manifest. The manual release
+workflow builds one flavor (`retro-master`); anything else is a local build.
 
 The complete source corpus is currently small enough for ordinary Git. Revisit
 that choice based on measured clone and repository cost, not merely asset

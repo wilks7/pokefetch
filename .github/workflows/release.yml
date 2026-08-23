@@ -1,24 +1,62 @@
 name: Release
 
-# Push a tag (git tag v0.1.0 && git push origin v0.1.0) to build a binary and
-# attach it to a GitHub Release. Nothing else is automated.
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to package, such as v0.1.0
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
-  build:
-    runs-on: macos-latest
+  draft-release:
+    runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - name: Validate release input
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | sed -n '1p')
+          test "$RELEASE_TAG" = "v$version"
+          test "$(git tag --points-at HEAD --list "$RELEASE_TAG")" = "$RELEASE_TAG"
       - name: Build with the full sprite bundle
         run: POKEFETCH_BUNDLE=retro-master cargo build --release --locked --features bundle-assets
-      - name: Archive
-        run: tar -czf pokefetch-macos-arm64.tar.gz -C target/release pokefetch
-      - uses: softprops/action-gh-release@v2
+      - name: Package and verify
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          target=$(rustc -vV | sed -n 's/^host: //p')
+          archive="pokefetch-$RELEASE_TAG-$target-retro-master.tar.gz"
+          mkdir -p dist
+          tar -czf "dist/$archive" -C target/release pokefetch
+          (cd dist && shasum -a 256 "$archive" > SHA256SUMS)
+          test "$(target/release/pokefetch --version)" = "pokefetch ${RELEASE_TAG#v}"
+          test "$(target/release/pokefetch bundle)" = retro-master
+      - name: Preserve packages with the workflow run
+        uses: actions/upload-artifact@v7.0.1
         with:
-          files: pokefetch-macos-arm64.tar.gz
-          generate_release_notes: true
+          name: pokefetch-${{ inputs.tag }}-package
+          path: dist/
+          if-no-files-found: error
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --draft \
+            --generate-notes \
+            --title "Pokefetch $RELEASE_TAG"

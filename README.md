@@ -43,6 +43,15 @@ POKEFETCH_BUNDLE=retro-master \
 pokefetch bundle
 ```
 
+The dry-run-first machine bootstrap wraps the same `cargo install` command and
+is the stable integration point used by the dotfiles repository:
+
+```sh
+bootstrap/bootstrap
+bootstrap/bootstrap --apply
+bootstrap/doctor
+```
+
 ### From a release
 
 Download the archive from the

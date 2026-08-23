@@ -1,0 +1,48 @@
+#!/bin/sh
+set -eu
+
+install_root=${HOME}/.local
+bundle=retro-master
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --root)
+            [ "$#" -ge 2 ] || { echo "ERROR --root requires a path" >&2; exit 1; }
+            install_root=$2
+            shift 2
+            ;;
+        --bundle)
+            [ "$#" -ge 2 ] || { echo "ERROR --bundle requires a profile" >&2; exit 1; }
+            bundle=$2
+            shift 2
+            ;;
+        --help|-h)
+            echo "usage: bootstrap/doctor [--root PATH] [--bundle PROFILE]"
+            exit 0
+            ;;
+        *)
+            echo "ERROR unknown argument: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+binary=$install_root/bin/pokefetch
+[ -x "$binary" ] || { echo "ERROR missing executable $binary" >&2; exit 1; }
+
+actual_bundle=$($binary bundle)
+[ "$actual_bundle" = "$bundle" ] || {
+    echo "ERROR expected bundle $bundle, found $actual_bundle" >&2
+    exit 1
+}
+
+verification_root=$(mktemp -d "${TMPDIR:-/tmp}/pokefetch-doctor.XXXXXX")
+trap 'rm -rf "$verification_root"' EXIT HUP INT TERM
+XDG_CONFIG_HOME=$verification_root/config \
+XDG_CACHE_HOME=$verification_root/cache \
+XDG_STATE_HOME=$verification_root/state \
+    "$binary" --no-icon show pikachu >/dev/null
+
+echo "OK executable $binary"
+echo "OK bundle $actual_bundle"
+echo "OK no-config greeting"

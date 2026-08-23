@@ -16,7 +16,7 @@ and re-run.
 
 ```sh
 cargo run -- show pikachu     # run it
-cargo test                    # 78 tests, all offline
+cargo test                    # 79 tests, all offline
 cargo doc --open              # browse the API docs generated from the source
 ```
 

@@ -1,0 +1,31 @@
+name: Validate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Remove unused runner tap
+        run: |
+          tap_path="$(brew --repository)/Library/Taps/aws/homebrew-tap"
+          if [ -d "$tap_path" ]; then
+            brew untap aws/tap
+          fi
+      - run: brew install shellcheck
+      - run: shellcheck bootstrap/bootstrap bootstrap/doctor
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - name: Check the release-equivalent bundle
+        run: |
+          POKEFETCH_BUNDLE=retro-master cargo clippy --all-targets --features bundle-assets -- -D warnings
+          POKEFETCH_BUNDLE=retro-master cargo test --features bundle-assets
+      - run: cargo doc --no-deps
+      - name: Install and verify the full bundle
+        run: bootstrap/bootstrap --root "$RUNNER_TEMP/pokefetch" --bundle retro-master --apply

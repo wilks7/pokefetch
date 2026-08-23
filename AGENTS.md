@@ -60,14 +60,16 @@ architecture.
 
 Current direction:
 
-- Keep the repository simple. Elaborate release packaging, checksum and
-  provenance verification, bootstrap and doctor scripts, a changelog, and
-  multi-flavor release matrices were deliberately removed. Distribution is:
-  clone and `cargo install --path .`, or download a binary from GitHub
-  Releases. Do not reintroduce that machinery without an explicit decision.
-- CI is one workflow that runs fmt, clippy, tests, and docs, against both the
-  default build and `retro-master`. Releases are one workflow triggered by
-  pushing a tag.
+- Keep the repository simple. The bootstrap and doctor are narrow wrappers
+  around `cargo install` and a no-config greeting because the dotfiles
+  bootstrap depends on that contract. Elaborate multi-flavor packaging and
+  provenance machinery were deliberately removed; do not expand the wrappers
+  back into a release toolkit without an explicit decision.
+- Hosted validation is one manual-only workflow that runs formatting, Clippy,
+  tests, docs, and the bootstrap against both the default build and
+  `retro-master`. The separate manual release workflow packages an existing
+  version tag into a draft release; neither workflow runs automatically on a
+  push or pull request.
 - There is one bundle feature, `bundle-assets`, driven by `POKEFETCH_BUNDLE`.
   The `bundle-gen1` feature and the duplicate `sprites/` tree it read were
   removed; `assets/` is the single source of artwork. Runtime support for
