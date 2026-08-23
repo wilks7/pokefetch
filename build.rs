@@ -49,6 +49,7 @@ struct BundleMember {
 
 #[derive(Deserialize)]
 struct AssetInventory {
+    schema_version: u16,
     assets: Vec<AssetRecord>,
 }
 
@@ -58,7 +59,7 @@ struct AssetRecord {
     variant: String,
     species: String,
     path: PathBuf,
-    terminal_palette: [String; 4],
+    terminal_palette: Vec<String>,
 }
 
 fn main() {
@@ -121,6 +122,10 @@ fn generate_asset_bundle(
             .unwrap_or_else(|error| panic!("read {}: {error}", inventory_path.display())),
     )
     .unwrap_or_else(|error| panic!("parse {}: {error}", inventory_path.display()));
+    assert_eq!(
+        inventory.schema_version, 2,
+        "regenerate the asset inventory"
+    );
 
     let selected = inventory
         .assets
@@ -141,6 +146,12 @@ fn generate_asset_bundle(
 
     let mut source = generated_prelude();
     for asset in selected {
+        assert_eq!(
+            asset.terminal_palette.len(),
+            palette::SIZE,
+            "{} has the wrong palette width",
+            asset.path.display()
+        );
         let path = manifest_dir.join(&asset.path);
         assert!(path.is_file(), "missing imported asset {}", path.display());
         println!("cargo:rerun-if-changed={}", path.display());
@@ -201,7 +212,7 @@ fn generate_legacy_bundle(manifest_dir: &std::path::Path, catalog: &SetCatalog) 
 
 fn generate_empty_bundle() -> String {
     "pub(crate) fn sprite(_: &str, _: &str, _: &str) -> Option<&'static [u8]> { None }\n\
-     pub(crate) fn palette(_: &str, _: &str, _: &str) -> Option<[(u8, u8, u8); 4]> { None }\n\
+     pub(crate) fn palette(_: &str, _: &str, _: &str) -> Option<[(u8, u8, u8); 8]> { None }\n\
      pub(crate) const PROFILE: &str = \"none\";\n"
         .to_string()
 }
@@ -212,7 +223,7 @@ fn generated_prelude() -> String {
          variant: &'static str,\n\
          species: &'static str,\n\
          bytes: &'static [u8],\n\
-         palette: [(u8, u8, u8); 4],\n\
+         palette: [(u8, u8, u8); 8],\n\
      }\n\
      static ASSETS: &[Asset] = &[\n"
         .to_string()
@@ -228,7 +239,7 @@ fn generated_postlude() -> &'static str {
      pub(crate) fn sprite(game: &str, variant: &str, species: &str) -> Option<&'static [u8]> {\n\
          find(game, variant, species).map(|asset| asset.bytes)\n\
      }\n\
-     pub(crate) fn palette(game: &str, variant: &str, species: &str) -> Option<[(u8, u8, u8); 4]> {\n\
+     pub(crate) fn palette(game: &str, variant: &str, species: &str) -> Option<[(u8, u8, u8); 8]> {\n\
          find(game, variant, species).map(|asset| asset.palette)\n\
      }\n"
 }

@@ -139,7 +139,7 @@ fn show(
     store: &SpriteStore<'_>,
     pokemon: &Pokemon,
     force_kitty: bool,
-) -> Result<[palette::Color; 4]> {
+) -> Result<[palette::Color; palette::SIZE]> {
     let source = load_source(store, pokemon)?;
     let colors = sprite::bundled_palette(pokemon.id, &store.game(), &store.variant())
         .unwrap_or_else(|| palette::extract(&source, &config.display.background));

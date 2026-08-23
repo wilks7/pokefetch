@@ -7,14 +7,14 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 
 use crate::config::{cache_dir, DisplayConfig};
-use crate::palette::Color;
+use crate::palette::{Color, SIZE as PALETTE_SIZE};
 use crate::pokemon::Pokemon;
 
 pub fn print_greeting(
     png: &[u8],
     pokemon: &Pokemon,
     variant: &str,
-    palette: &[Color; 4],
+    palette: &[Color; PALETTE_SIZE],
     display: &DisplayConfig,
     force_kitty: bool,
 ) -> Result<()> {
@@ -22,6 +22,7 @@ pub fn print_greeting(
     let terminal = io::stdout().is_terminal();
     let supports_images = should_render_image(force_kitty);
     let lines = information_lines(pokemon, variant);
+    validate_greeting_layout(lines.len(), display.rows)?;
 
     if supports_images {
         transmit_kitty(&mut output, png, display.columns, display.rows)?;
@@ -55,6 +56,18 @@ pub fn print_greeting(
         }
     }
     output.flush().context("flushing greeting")
+}
+
+fn validate_greeting_layout(line_count: usize, rows: u16) -> Result<()> {
+    anyhow::ensure!(
+        (1..=PALETTE_SIZE).contains(&line_count),
+        "greeting needs between 1 and {PALETTE_SIZE} information lines"
+    );
+    anyhow::ensure!(
+        usize::from(rows) > line_count,
+        "display.rows must leave room for every information line"
+    );
+    Ok(())
 }
 
 pub fn supports_kitty_graphics() -> bool {
@@ -149,7 +162,7 @@ fn transmit_kitty(writer: &mut impl Write, png: &[u8], columns: u16, rows: u16) 
     Ok(())
 }
 
-fn information_lines(pokemon: &Pokemon, variant: &str) -> [String; 5] {
+fn information_lines(pokemon: &Pokemon, variant: &str) -> Vec<String> {
     let user = std::env::var("USER")
         .ok()
         .filter(|value| !value.is_empty())
@@ -172,7 +185,7 @@ fn information_lines(pokemon: &Pokemon, variant: &str) -> [String; 5] {
         .unwrap_or_else(|| "Terminal".to_string());
     let snapshot = system_snapshot();
 
-    [
+    vec![
         format!("{user} @ {host}"),
         snapshot.system,
         snapshot.hardware,
@@ -292,5 +305,19 @@ fn capitalize(value: &str) -> String {
     match characters.next() {
         Some(first) => first.to_uppercase().collect::<String>() + characters.as_str(),
         None => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_greeting_layout;
+
+    #[test]
+    fn supports_between_one_and_eight_information_lines() {
+        assert!(validate_greeting_layout(1, 2).is_ok());
+        assert!(validate_greeting_layout(8, 9).is_ok());
+        assert!(validate_greeting_layout(0, 9).is_err());
+        assert!(validate_greeting_layout(9, 10).is_err());
+        assert!(validate_greeting_layout(8, 8).is_err());
     }
 }

@@ -9,7 +9,11 @@ mod bundled {
     include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
 }
 
-pub fn bundled_palette(id: u16, game: &str, variant: &str) -> Option<[crate::palette::Color; 4]> {
+pub fn bundled_palette(
+    id: u16,
+    game: &str,
+    variant: &str,
+) -> Option<[crate::palette::Color; crate::palette::SIZE]> {
     bundled::palette(game, variant, &id.to_string())
         .map(|colors| colors.map(|(red, green, blue)| crate::palette::Color { red, green, blue }))
 }

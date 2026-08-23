@@ -137,7 +137,7 @@ struct AssetRecord {
     path: String,
     bytes: u64,
     sha256: String,
-    terminal_palette: [String; 4],
+    terminal_palette: Vec<String>,
 }
 
 fn default_asset_format() -> AssetFormat {
@@ -358,7 +358,7 @@ fn import_assets(
     inventory.assets.sort_by(|left, right| {
         (&left.set, &left.variant, &left.species).cmp(&(&right.set, &right.variant, &right.species))
     });
-    inventory.schema_version = 1;
+    inventory.schema_version = 2;
     inventory
         .source_repository
         .clone_from(&catalog.source.repository);
@@ -553,7 +553,7 @@ fn import_candidate(candidate: &Candidate) -> Result<AssetRecord> {
         path: candidate.destination.to_string_lossy().into_owned(),
         bytes: bytes.len() as u64,
         sha256: format!("{:x}", Sha256::digest(&bytes)),
-        terminal_palette: colors.map(|color| color.hex()),
+        terminal_palette: colors.into_iter().map(|color| color.hex()).collect(),
     })
 }
 
@@ -592,8 +592,8 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        load_bundle_catalog, load_catalog, parse_dex_range, species_key, validate_bundles,
-        validate_catalog, AssetFormat,
+        load_bundle_catalog, load_catalog, load_inventory, parse_dex_range, species_key,
+        validate_bundles, validate_catalog, AssetFormat,
     };
     use std::path::Path;
 
@@ -633,5 +633,16 @@ mod tests {
             Some((25, "25".to_string()))
         );
         assert_eq!(species_key(Path::new("README.md"), AssetFormat::Png), None);
+    }
+
+    #[test]
+    fn checked_in_inventory_has_eight_color_palettes() {
+        let inventory = load_inventory(Path::new("assets/manifest.toml")).unwrap();
+        assert_eq!(inventory.schema_version, 2);
+        assert_eq!(inventory.assets.len(), 2_362);
+        assert!(inventory
+            .assets
+            .iter()
+            .all(|asset| asset.terminal_palette.len() == 8));
     }
 }

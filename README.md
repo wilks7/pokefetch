@@ -83,6 +83,12 @@ range_end = 251
 The legacy `variant = "red-blue"` configuration and `bundle-gen1` Cargo
 feature remain compatible during migration.
 
+Every asset carries an eight-color, population-weighted palette. The extractor
+balances dominant coverage with color separation, preserves opaque white, and
+repeats real sprite colors when older artwork exposes fewer than eight. The
+greeting renderer accepts one through eight information lines and currently
+uses five, leaving three palette slots available for future rows.
+
 List the catalog and bundle profiles with:
 
 ```sh
@@ -114,8 +120,8 @@ cargo run --bin pokefetch-assets -- import \
 
 Applied imports synchronize the selected game directories under `assets/sets`,
 preserve the original bytes, validate each image, calculate its SHA-256 digest
-and first-frame terminal palette, prune stale managed variants, and atomically
-update `assets/manifest.toml`.
+and eight-color first-frame terminal palette, prune stale managed variants,
+and atomically update `assets/manifest.toml`.
 
 Crystal also exposes `variant = "front-animated"`. Its original transparent
 GIFs are bundled and decoded, but Pokefetch currently renders the first frame

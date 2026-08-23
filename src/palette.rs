@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use image::RgbaImage;
 
+pub const SIZE: usize = 8;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Color {
     pub red: u8,
@@ -15,7 +17,7 @@ impl Color {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Bucket {
     count: u32,
     red: u64,
@@ -23,7 +25,13 @@ struct Bucket {
     blue: u64,
 }
 
-pub fn extract(image: &RgbaImage, background: &str) -> [Color; 4] {
+#[derive(Clone, Copy)]
+struct Candidate {
+    count: u32,
+    color: Color,
+}
+
+pub fn extract(image: &RgbaImage, background: &str) -> [Color; SIZE] {
     let background = parse_hex(background).unwrap_or(Color {
         red: 34,
         green: 36,
@@ -33,7 +41,7 @@ pub fn extract(image: &RgbaImage, background: &str) -> [Color; 4] {
 
     for pixel in image.pixels() {
         let [red, green, blue, alpha] = pixel.0;
-        if alpha < 128 || (red > 242 && green > 242 && blue > 242) {
+        if alpha < 128 {
             continue;
         }
         let bucket = buckets
@@ -45,46 +53,43 @@ pub fn extract(image: &RgbaImage, background: &str) -> [Color; 4] {
         bucket.blue += u64::from(blue);
     }
 
-    let mut candidates: Vec<(u32, Color)> = buckets
+    let mut candidates: Vec<Candidate> = buckets
         .into_values()
         .map(|bucket| {
             let count = u64::from(bucket.count);
-            (
-                bucket.count,
-                Color {
+            Candidate {
+                count: bucket.count,
+                color: Color {
                     red: (bucket.red / count) as u8,
                     green: (bucket.green / count) as u8,
                     blue: (bucket.blue / count) as u8,
                 },
-            )
+            }
         })
         .collect();
-    candidates.sort_by(|(left_count, left), (right_count, right)| {
-        colorfulness(*right)
-            .cmp(&colorfulness(*left))
-            .then(right_count.cmp(left_count))
+    candidates.sort_by(|left, right| {
+        right.count.cmp(&left.count).then_with(|| {
+            (left.color.red, left.color.green, left.color.blue).cmp(&(
+                right.color.red,
+                right.color.green,
+                right.color.blue,
+            ))
+        })
     });
 
-    let mut selected = Vec::with_capacity(4);
-    for (_, color) in &candidates {
-        if selected
-            .iter()
-            .all(|existing| color_distance(*existing, *color) >= 52.0)
-        {
-            selected.push(*color);
-            if selected.len() == 4 {
-                break;
-            }
-        }
+    let mut selected = clustered_palette(&candidates);
+    for color in &mut selected {
+        *color = ensure_contrast(*color, background);
     }
-    for (_, color) in candidates {
-        if !selected.contains(&color) {
-            selected.push(color);
-            if selected.len() == 4 {
-                break;
-            }
+    let mut unique = Vec::with_capacity(SIZE);
+    selected.retain(|color| {
+        if unique.contains(color) {
+            false
+        } else {
+            unique.push(*color);
+            true
         }
-    }
+    });
 
     let fallbacks = [
         Color {
@@ -107,12 +112,157 @@ pub fn extract(image: &RgbaImage, background: &str) -> [Color; 4] {
             green: 117,
             blue: 127,
         },
+        Color {
+            red: 180,
+            green: 190,
+            blue: 254,
+        },
+        Color {
+            red: 255,
+            green: 150,
+            blue: 213,
+        },
+        Color {
+            red: 134,
+            green: 200,
+            blue: 190,
+        },
+        Color {
+            red: 198,
+            green: 160,
+            blue: 246,
+        },
     ];
-    while selected.len() < 4 {
-        selected.push(fallbacks[selected.len()]);
+    if selected.is_empty() {
+        selected.extend(fallbacks.map(|color| ensure_contrast(color, background)));
+    } else {
+        let extracted = selected.len();
+        while selected.len() < SIZE {
+            selected.push(selected[selected.len() % extracted]);
+        }
     }
 
-    std::array::from_fn(|index| ensure_contrast(selected[index], background))
+    std::array::from_fn(|index| selected[index])
+}
+
+fn clustered_palette(candidates: &[Candidate]) -> Vec<Color> {
+    let target = SIZE.min(candidates.len());
+    if target == 0 {
+        return Vec::new();
+    }
+
+    let mut centers = vec![candidates[0].color];
+    while centers.len() < target {
+        let next = candidates
+            .iter()
+            .filter(|candidate| !centers.contains(&candidate.color))
+            .max_by(|left, right| {
+                seed_score(**left, &centers).total_cmp(&seed_score(**right, &centers))
+            })
+            .map(|candidate| candidate.color);
+        let Some(next) = next else {
+            break;
+        };
+        centers.push(next);
+    }
+
+    for _ in 0..8 {
+        let mut totals = vec![Bucket::default(); centers.len()];
+        for candidate in candidates {
+            let index = nearest_center(candidate.color, &centers);
+            let total = &mut totals[index];
+            total.count += candidate.count;
+            total.red += u64::from(candidate.color.red) * u64::from(candidate.count);
+            total.green += u64::from(candidate.color.green) * u64::from(candidate.count);
+            total.blue += u64::from(candidate.color.blue) * u64::from(candidate.count);
+        }
+        for (center, total) in centers.iter_mut().zip(totals) {
+            if total.count == 0 {
+                continue;
+            }
+            let count = u64::from(total.count);
+            *center = Color {
+                red: (total.red / count) as u8,
+                green: (total.green / count) as u8,
+                blue: (total.blue / count) as u8,
+            };
+        }
+    }
+
+    let mut clusters = centers
+        .into_iter()
+        .map(|color| Candidate { count: 0, color })
+        .collect::<Vec<_>>();
+    let colors = clusters
+        .iter()
+        .map(|cluster| cluster.color)
+        .collect::<Vec<_>>();
+    for candidate in candidates {
+        let index = nearest_center(candidate.color, &colors);
+        clusters[index].count += candidate.count;
+    }
+    clusters.sort_by(|left, right| {
+        right.count.cmp(&left.count).then_with(|| {
+            (left.color.red, left.color.green, left.color.blue).cmp(&(
+                right.color.red,
+                right.color.green,
+                right.color.blue,
+            ))
+        })
+    });
+
+    let mut ordered = vec![clusters.remove(0).color];
+    while !clusters.is_empty() {
+        let index = clusters
+            .iter()
+            .enumerate()
+            .max_by(|(_, left), (_, right)| {
+                ordering_score(**left, &ordered).total_cmp(&ordering_score(**right, &ordered))
+            })
+            .map(|(index, _)| index)
+            .expect("non-empty clusters");
+        ordered.push(clusters.remove(index).color);
+    }
+    ordered
+}
+
+fn seed_score(candidate: Candidate, centers: &[Color]) -> f64 {
+    f64::from(candidate.count).sqrt() * nearest_distance_squared(candidate.color, centers).sqrt()
+}
+
+fn ordering_score(candidate: Candidate, selected: &[Color]) -> f64 {
+    let maximum = candidate
+        .color
+        .red
+        .max(candidate.color.green)
+        .max(candidate.color.blue);
+    let minimum = candidate
+        .color
+        .red
+        .min(candidate.color.green)
+        .min(candidate.color.blue);
+    let chroma_weight = 0.6 + f64::from(maximum - minimum) / 255.0;
+    f64::from(candidate.count).powf(0.35)
+        * (8.0 + nearest_distance_squared(candidate.color, selected).sqrt())
+        * chroma_weight
+}
+
+fn nearest_center(color: Color, centers: &[Color]) -> usize {
+    centers
+        .iter()
+        .enumerate()
+        .min_by_key(|(_, center)| color_distance_squared(color, **center))
+        .map(|(index, _)| index)
+        .expect("palette has at least one center")
+}
+
+fn nearest_distance_squared(color: Color, centers: &[Color]) -> f64 {
+    centers
+        .iter()
+        .map(|center| color_distance_squared(color, *center))
+        .min()
+        .map(|distance| distance as f64)
+        .unwrap_or_default()
 }
 
 fn parse_hex(value: &str) -> Option<Color> {
@@ -127,17 +277,11 @@ fn parse_hex(value: &str) -> Option<Color> {
     })
 }
 
-fn colorfulness(color: Color) -> u16 {
-    let maximum = color.red.max(color.green).max(color.blue);
-    let minimum = color.red.min(color.green).min(color.blue);
-    u16::from(maximum - minimum)
-}
-
-fn color_distance(left: Color, right: Color) -> f64 {
-    let red = f64::from(left.red) - f64::from(right.red);
-    let green = f64::from(left.green) - f64::from(right.green);
-    let blue = f64::from(left.blue) - f64::from(right.blue);
-    (red * red + green * green + blue * blue).sqrt()
+fn color_distance_squared(left: Color, right: Color) -> u32 {
+    let red = i32::from(left.red) - i32::from(right.red);
+    let green = i32::from(left.green) - i32::from(right.green);
+    let blue = i32::from(left.blue) - i32::from(right.blue);
+    (red * red + green * green + blue * blue) as u32
 }
 
 fn ensure_contrast(mut foreground: Color, background: Color) -> Color {
@@ -176,9 +320,11 @@ fn luminance(color: Color) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use image::{Rgba, RgbaImage};
 
-    use super::{extract, Color};
+    use super::{extract, Color, SIZE};
 
     #[test]
     fn ignores_transparency_and_preserves_sprite_colors() {
@@ -193,6 +339,42 @@ mod tests {
             green: 40,
             blue: 30
         }));
-        assert_eq!(palette.len(), 4);
+        assert_eq!(palette.len(), SIZE);
+    }
+
+    #[test]
+    fn keeps_dominant_colors_ahead_of_small_accents() {
+        let mut image = RgbaImage::from_pixel(10, 10, Rgba([30, 160, 80, 255]));
+        for x in 0..10 {
+            image.put_pixel(x, 0, Rgba([250, 40, 30, 255]));
+        }
+        let palette = extract(&image, "#000000");
+        assert!(palette[0].green > palette[0].red);
+    }
+
+    #[test]
+    fn repeats_real_colors_when_a_sprite_has_fewer_than_eight() {
+        let mut image = RgbaImage::from_pixel(2, 1, Rgba([220, 40, 30, 255]));
+        image.put_pixel(1, 0, Rgba([40, 80, 220, 255]));
+        let palette = extract(&image, "#000000");
+        let unique = palette
+            .iter()
+            .map(|color| color.hex())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(unique.len(), 2);
+        assert_eq!(palette[0], palette[2]);
+    }
+
+    #[test]
+    fn preserves_opaque_white_as_a_sprite_color() {
+        let image = RgbaImage::from_pixel(2, 2, Rgba([255, 255, 255, 255]));
+        assert_eq!(
+            extract(&image, "#000000")[0],
+            Color {
+                red: 255,
+                green: 255,
+                blue: 255
+            }
+        );
     }
 }
