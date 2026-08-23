@@ -18,6 +18,8 @@ bootstrap/doctor
 
 The repository's `Validate` GitHub Actions workflow is manual-only. Run it from
 the Actions tab to repeat the full bootstrap and doctor on a fresh hosted Mac.
+It also packages every release flavor, verifies checksums and provenance, runs
+the archived executables, and proves an existing user config is unchanged.
 The separate manual `Release` workflow packages the profiles listed in
 `release/bundles.txt` and creates a draft GitHub Release from an existing
 version tag. It never publishes a release automatically.

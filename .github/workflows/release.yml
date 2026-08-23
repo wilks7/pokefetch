@@ -37,13 +37,15 @@ jobs:
           version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | sed -n '1p')
           test "$RELEASE_TAG" = "v$version"
           test "$(git tag --points-at HEAD --list "$RELEASE_TAG")" = "$RELEASE_TAG"
-      - run: shellcheck bootstrap/bootstrap bootstrap/doctor release/package
+      - run: shellcheck bootstrap/bootstrap bootstrap/doctor release/package release/verify
       - run: cargo fmt --check
       - run: cargo test
       - name: Package release bundles
         env:
           RELEASE_TAG: ${{ inputs.tag }}
-        run: release/package --tag "$RELEASE_TAG"
+        run: |
+          release/package --tag "$RELEASE_TAG"
+          release/verify
       - name: Preserve packages with the workflow run
         uses: actions/upload-artifact@v7.0.1
         with:
