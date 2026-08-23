@@ -1,0 +1,16 @@
+[sprites]
+variant = "red-blue"
+artwork = false
+range_start = 1
+range_end = 151
+pokemon = []
+
+[display]
+columns = 18
+rows = 9
+gap = 2
+canvas_pixels = 288
+background = "#222436"
+
+[icon]
+enabled = true
