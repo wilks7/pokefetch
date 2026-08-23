@@ -41,6 +41,14 @@ the supported shape. Local overrides are resolved from
 back to the pinned PokeAPI revision and are cached by game and variant under
 `$XDG_CACHE_HOME/pokefetch/sprites`.
 
+Display sizing is expressed in terminal rows. `size = 8` produces an
+eight-row image, derives a 16-column Kitty placement and a 256-pixel render
+canvas, and therefore scales consistently with the terminal's font size.
+`alignment = "center"` vertically centers whichever side is shorter—the image
+or the information text—while `alignment = "top"` starts both on the first
+row. Pokefetch accepts sizes from one through eight and does not add synthetic
+empty information lines.
+
 Hardware and package-manager summaries are cached in
 `$XDG_CACHE_HOME/pokefetch/system.toml` so opening a new terminal does not
 re-run system probes on every greeting.

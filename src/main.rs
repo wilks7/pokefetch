@@ -167,7 +167,7 @@ fn show(
     let colors = sprite::bundled_palette(pokemon.id, store.game(), &store.variant())
         .unwrap_or_else(|| palette::extract(&source, &config.display.background));
     let png = if terminal::should_render_image(force_kitty) {
-        let rendered = image_ops::render_square(&source, config.display.canvas_pixels, 3);
+        let rendered = image_ops::render_square(&source, config.display.canvas_pixels(), 3);
         image_ops::encode_png(&rendered)?
     } else {
         Vec::new()

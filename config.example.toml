@@ -7,10 +7,9 @@ range_end = 386
 pokemon = []
 
 [display]
-columns = 18
-rows = 9
+size = 8
+alignment = "center"
 gap = 2
-canvas_pixels = 288
 background = "#222436"
 
 [icon]

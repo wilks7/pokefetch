@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 
-use crate::config::{cache_dir, DisplayConfig};
+use crate::config::{cache_dir, Alignment, DisplayConfig};
 use crate::palette::{Color, SIZE as PALETTE_SIZE};
 use crate::pokemon::Pokemon;
 
@@ -22,27 +22,35 @@ pub fn print_greeting(
     let terminal = io::stdout().is_terminal();
     let supports_images = should_render_image(force_kitty);
     let lines = information_lines(pokemon, variant);
-    validate_greeting_layout(lines.len(), display.rows)?;
+    let layout = greeting_layout(lines.len(), display)?;
 
     if supports_images {
-        transmit_kitty(&mut output, png, display.columns, display.rows)?;
-        write!(output, "\r\n")?;
+        for _ in 0..layout.image_offset {
+            write!(output, "\r\n")?;
+        }
+        transmit_kitty(&mut output, png, display.columns(), display.size)?;
+        if layout.image_offset > 0 {
+            write!(output, "\x1b[{}A", layout.image_offset)?;
+        }
+        for _ in 0..layout.text_offset {
+            write!(output, "\r\n")?;
+        }
         for (line, color) in lines.iter().zip(palette.iter().cycle().take(lines.len())) {
             write!(
                 output,
                 "\r\x1b[{}C\x1b[38;2;{};{};{}m{}\x1b[0m\r\n",
-                display.columns + display.gap,
+                display.columns() + display.gap,
                 color.red,
                 color.green,
                 color.blue,
                 line
             )?;
         }
-        for _ in lines.len() + 1..usize::from(display.rows) {
+        let occupied = layout.text_offset + lines.len();
+        for _ in occupied..layout.height {
             write!(output, "\r\n")?;
         }
     } else {
-        writeln!(output)?;
         for (line, color) in lines.iter().zip(palette.iter().cycle().take(lines.len())) {
             if terminal {
                 writeln!(
@@ -58,16 +66,29 @@ pub fn print_greeting(
     output.flush().context("flushing greeting")
 }
 
-fn validate_greeting_layout(line_count: usize, rows: u16) -> Result<()> {
+#[derive(Debug, Eq, PartialEq)]
+struct GreetingLayout {
+    height: usize,
+    image_offset: usize,
+    text_offset: usize,
+}
+
+fn greeting_layout(line_count: usize, display: &DisplayConfig) -> Result<GreetingLayout> {
     anyhow::ensure!(
         (1..=PALETTE_SIZE).contains(&line_count),
         "greeting needs between 1 and {PALETTE_SIZE} information lines"
     );
-    anyhow::ensure!(
-        usize::from(rows) > line_count,
-        "display.rows must leave room for every information line"
-    );
-    Ok(())
+    let image_height = usize::from(display.size);
+    let height = image_height.max(line_count);
+    let (image_offset, text_offset) = match display.alignment {
+        Alignment::Top => (0, 0),
+        Alignment::Center => ((height - image_height) / 2, (height - line_count) / 2),
+    };
+    Ok(GreetingLayout {
+        height,
+        image_offset,
+        text_offset,
+    })
 }
 
 pub fn supports_kitty_graphics() -> bool {
@@ -310,14 +331,58 @@ fn capitalize(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_greeting_layout;
+    use super::{greeting_layout, GreetingLayout};
+    use crate::config::{Alignment, DisplayConfig};
 
     #[test]
     fn supports_between_one_and_eight_information_lines() {
-        assert!(validate_greeting_layout(1, 2).is_ok());
-        assert!(validate_greeting_layout(8, 9).is_ok());
-        assert!(validate_greeting_layout(0, 9).is_err());
-        assert!(validate_greeting_layout(9, 10).is_err());
-        assert!(validate_greeting_layout(8, 8).is_err());
+        let display = DisplayConfig::default();
+        assert!(greeting_layout(1, &display).is_ok());
+        assert!(greeting_layout(8, &display).is_ok());
+        assert!(greeting_layout(0, &display).is_err());
+        assert!(greeting_layout(9, &display).is_err());
+    }
+
+    #[test]
+    fn centers_shorter_text_or_image_by_terminal_row() {
+        let display = DisplayConfig::default();
+        assert_eq!(
+            greeting_layout(5, &display).unwrap(),
+            GreetingLayout {
+                height: 8,
+                image_offset: 0,
+                text_offset: 1,
+            }
+        );
+
+        let display = DisplayConfig {
+            size: 2,
+            ..DisplayConfig::default()
+        };
+        assert_eq!(
+            greeting_layout(6, &display).unwrap(),
+            GreetingLayout {
+                height: 6,
+                image_offset: 2,
+                text_offset: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn top_alignment_never_adds_an_offset() {
+        let display = DisplayConfig {
+            size: 2,
+            alignment: Alignment::Top,
+            ..DisplayConfig::default()
+        };
+        assert_eq!(
+            greeting_layout(6, &display).unwrap(),
+            GreetingLayout {
+                height: 6,
+                image_offset: 0,
+                text_offset: 0,
+            }
+        );
     }
 }

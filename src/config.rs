@@ -64,11 +64,28 @@ impl From<String> for GameSelection {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct DisplayConfig {
-    pub columns: u16,
-    pub rows: u16,
+    pub size: u16,
+    pub alignment: Alignment,
     pub gap: u16,
-    pub canvas_pixels: u32,
     pub background: String,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Alignment {
+    Top,
+    #[default]
+    Center,
+}
+
+impl DisplayConfig {
+    pub fn columns(&self) -> u16 {
+        self.size * 2
+    }
+
+    pub fn canvas_pixels(&self) -> u32 {
+        u32::from(self.size) * 32
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -93,10 +110,9 @@ impl Default for SpriteConfig {
 impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
-            columns: 18,
-            rows: 9,
+            size: 8,
+            alignment: Alignment::Center,
             gap: 2,
-            canvas_pixels: 288,
             background: "#222436".to_string(),
         }
     }
@@ -172,12 +188,8 @@ impl Config {
             "sprites.pokemon entries must be between 1 and 1025"
         );
         anyhow::ensure!(
-            self.display.columns > 0 && self.display.rows >= 6,
-            "display needs at least one column and six rows"
-        );
-        anyhow::ensure!(
-            self.display.canvas_pixels >= 32,
-            "display.canvas_pixels must be at least 32"
+            (1..=8).contains(&self.display.size),
+            "display.size must be between 1 and 8 rows"
         );
         Ok(())
     }
@@ -229,7 +241,7 @@ fn home_dir() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{Config, GameSelection};
+    use super::{Alignment, Config, GameSelection};
 
     #[test]
     fn defaults_match_the_checked_in_profile() {
@@ -238,7 +250,8 @@ mod tests {
         assert_eq!(config.sprites.variant, "front");
         assert_eq!(config.sprites.range_start, 1);
         assert_eq!(config.sprites.range_end, 151);
-        assert_eq!(config.display.rows, 9);
+        assert_eq!(config.display.size, 8);
+        assert_eq!(config.display.alignment, Alignment::Center);
         assert!(config.icon.enabled);
     }
 
