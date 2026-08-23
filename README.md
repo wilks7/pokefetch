@@ -212,20 +212,31 @@ implement Kitty animation frames.
 ## Develop
 
 ```sh
-cargo test                                          # 78 tests, all offline
+cargo test                                          # 79 tests, all offline
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 cargo doc --open
 ```
 
-Before committing Rust changes, also run the bundle-feature variants:
+Before committing, also run the bundled build that releases ship, which is the
+only thing that exercises the full asset manifest:
 
 ```sh
-cargo test --features bundle-gen1
-cargo clippy --all-targets --features bundle-gen1 -- -D warnings
+POKEFETCH_BUNDLE=retro-master cargo test --features bundle-assets
 ```
 
 Lints are configured in `Cargo.toml` under `[lints]`, at `clippy::pedantic`.
+
+### Artwork lives in one place
+
+`assets/sets/` holds every imported sprite, described by `assets/manifest.toml`
+and selected into a build by `manifests/bundles.toml`. There is one bundle
+feature, `bundle-assets`, and `POKEFETCH_BUNDLE` picks the profile. A build
+without that feature embeds nothing and downloads on demand.
+
+Configs that name a game in `sprites.variant` (`variant = "red-blue"`) are still
+accepted — that is a runtime compatibility shim and is unrelated to how artwork
+is stored.
 
 ## Credits
 

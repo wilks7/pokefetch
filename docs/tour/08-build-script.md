@@ -114,7 +114,6 @@ build script's audience is whoever just broke the manifest.
 ```toml
 [features]
 default = []
-bundle-gen1 = []
 bundle-assets = []
 ```
 
@@ -122,8 +121,8 @@ Features are compile-time flags. Cargo exposes each enabled one to the build
 script as `CARGO_FEATURE_<NAME>`, and to your code as `#[cfg(feature = "...")]`.
 
 ```sh
-cargo build                                          # no bundle, stub functions
-cargo build --features bundle-gen1                   # the original 151
+cargo build                                              # no bundle, stub functions
+POKEFETCH_BUNDLE=red-blue-core cargo build --features bundle-assets
 POKEFETCH_BUNDLE=retro-master cargo build --features bundle-assets
 ```
 
@@ -137,9 +136,15 @@ how a codebase acquires configurations nobody ever compiles.
 
 ## Cost
 
-Build scripts slow down builds — this one decodes and quantizes every sprite for
-`bundle-gen1`. Reach for one when you genuinely need work done at compile time:
-embedding assets, generating bindings, or querying the target platform.
+Build scripts slow down builds — this one reads a manifest of 2,362 assets and
+emits an `include_bytes!` for each selected one. Reach for a build script when
+you genuinely need work done at compile time: embedding assets, generating
+bindings, or querying the target platform.
+
+Worth noticing how the cost was kept down. Palettes are *not* computed here;
+they were computed once by `pokefetch-assets` at import time and recorded in
+`assets/manifest.toml`, so the build script only parses hex strings. An earlier
+version of this script decoded and quantized all 151 sprites on every build.
 
 ---
 

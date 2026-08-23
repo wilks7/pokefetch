@@ -411,9 +411,7 @@ fn is_populated(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{extension_for, generation_for, source_for_variant, SpriteStore};
-    #[cfg(any(feature = "bundle-gen1", feature = "bundle-assets"))]
-    use crate::config::GameSelection;
-    use crate::config::SpriteConfig;
+    use crate::config::{GameSelection, SpriteConfig};
     use std::path::Path;
 
     #[test]
@@ -455,7 +453,7 @@ mod tests {
         assert_eq!(store.label(), "official-artwork");
     }
 
-    #[cfg(feature = "bundle-gen1")]
+    #[cfg(feature = "bundle-assets")]
     #[test]
     fn random_game_uses_a_game_present_in_the_bundle() {
         let config = SpriteConfig {
@@ -463,11 +461,12 @@ mod tests {
             ..SpriteConfig::default()
         };
         let store = SpriteStore::new(&config, Path::new("."), None).unwrap();
-        assert_eq!(store.game(), "red-blue");
-        assert!(store.has_bundled_sprite(25));
+        // Which game is chosen depends on POKEFETCH_BUNDLE, so assert the
+        // property that must hold for every profile rather than a fixed name.
+        assert!(super::bundled::GAMES.contains(&store.game()));
     }
 
-    #[cfg(any(feature = "bundle-gen1", feature = "bundle-assets"))]
+    #[cfg(feature = "bundle-assets")]
     #[test]
     fn curated_pool_uses_only_requested_bundled_games() {
         let requested = super::bundled::GAMES
@@ -483,16 +482,19 @@ mod tests {
         assert!(requested.iter().any(|game| game == store.game()));
     }
 
-    #[cfg(feature = "bundle-gen1")]
     #[test]
     fn listed_games_must_be_present_in_the_bundle() {
+        // Deliberately a name no profile can contain, so this holds for every
+        // bundle -- including the stub bundle of a default build.
         let config = SpriteConfig {
-            game: GameSelection::Many(vec!["crystal".to_string()]),
+            game: GameSelection::Many(vec!["not-a-bundled-game".to_string()]),
             ..SpriteConfig::default()
         };
         let error = SpriteStore::new(&config, Path::new("."), None)
             .err()
             .unwrap();
-        assert!(error.to_string().contains("does not contain: crystal"));
+        assert!(error
+            .to_string()
+            .contains("does not contain: not-a-bundled-game"));
     }
 }

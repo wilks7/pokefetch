@@ -11,10 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cargo fmt --check
-      - run: cargo clippy --all-targets --features bundle-gen1 -- -D warnings
+      - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
-      - run: cargo test --features bundle-gen1
-      # The flavor the release workflow builds. Cheap, and it is the only thing
-      # that exercises the full asset manifest end to end.
+      # The flavor the release workflow builds, and the only thing that
+      # exercises the full asset manifest end to end.
+      - run: POKEFETCH_BUNDLE=retro-master cargo clippy --all-targets --features bundle-assets -- -D warnings
       - run: POKEFETCH_BUNDLE=retro-master cargo test --features bundle-assets
       - run: cargo doc --no-deps

@@ -90,7 +90,6 @@ struct AssetRecord {
 }
 
 fn main() {
-    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_BUNDLE_GEN1");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_BUNDLE_ASSETS");
     println!("cargo:rerun-if-env-changed=POKEFETCH_BUNDLE");
     println!("cargo:rerun-if-changed=manifests/sets.toml");
@@ -117,14 +116,10 @@ fn main() {
     validate_manifests(&catalog, &bundles);
     let generated = env::var_os("OUT_DIR").expect("OUT_DIR");
     let generated = PathBuf::from(generated).join("bundled.rs");
-    let legacy = env::var_os("CARGO_FEATURE_BUNDLE_GEN1").is_some();
-    let assets = env::var_os("CARGO_FEATURE_BUNDLE_ASSETS").is_some();
-    assert!(!(legacy && assets), "choose only one bundle feature");
-
-    let source = if assets {
+    // Without the feature, stubs are emitted instead. The rest of the crate is
+    // written as if bundles always exist, so this is the only branch on it.
+    let source = if env::var_os("CARGO_FEATURE_BUNDLE_ASSETS").is_some() {
         generate_asset_bundle(&manifest_dir, &catalog, &bundles)
-    } else if legacy {
-        generate_legacy_bundle(&manifest_dir, &catalog)
     } else {
         generate_empty_bundle()
     };
@@ -205,41 +200,6 @@ fn generate_asset_bundle(
     source.push_str(generated_postlude());
     write_games(&mut source, games);
     let _ = writeln!(source, "pub(crate) const PROFILE: &str = {profile_id:?};");
-    source
-}
-
-fn generate_legacy_bundle(manifest_dir: &std::path::Path, catalog: &SetCatalog) -> String {
-    let red_blue = catalog
-        .sets
-        .iter()
-        .find(|set| set.id == "red-blue")
-        .expect("set catalog must define red-blue");
-    let sprite_dir = manifest_dir.join("sprites/red-blue");
-    let mut source = generated_prelude();
-    for id in 1..=red_blue.dex_end {
-        let path = sprite_dir.join(format!("{id}.png"));
-        println!("cargo:rerun-if-changed={}", path.display());
-        if !path.is_file() {
-            continue;
-        }
-        let image = image::open(&path)
-            .unwrap_or_else(|error| panic!("decode {}: {error}", path.display()))
-            .to_rgba8();
-        let colors = palette::extract(&image, "#222436");
-        let colors = colors
-            .iter()
-            .map(|color| format!("({}, {}, {})", color.red, color.green, color.blue))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let _ = writeln!(
-            source,
-            "    Asset {{ game: \"red-blue\", variant: \"front\", species: \"{id}\", bytes: include_bytes!({:?}), palette: [{colors}] }},",
-            path.to_string_lossy()
-        );
-    }
-    source.push_str(generated_postlude());
-    source.push_str("pub(crate) const GAMES: &[&str] = &[\"red-blue\"];\n");
-    source.push_str("pub(crate) const PROFILE: &str = \"red-blue-core-legacy\";\n");
     source
 }
 

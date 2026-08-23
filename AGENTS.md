@@ -17,8 +17,9 @@
 - Keep the canonical palette at eight colors. Greeting renderers may consume
   one through eight lines; the current system profile intentionally uses five.
 - Before committing Rust changes, run `cargo fmt --check`, `cargo test`,
-  `cargo test --features bundle-gen1`, and
-  `cargo clippy --all-targets --features bundle-gen1 -- -D warnings`.
+  `cargo clippy --all-targets -- -D warnings`, and the bundled build that
+  releases ship: `POKEFETCH_BUNDLE=retro-master cargo test --features
+  bundle-assets`.
 
 ## This repository is also a Rust teaching example
 
@@ -64,8 +65,13 @@ Current direction:
   multi-flavor release matrices were deliberately removed. Distribution is:
   clone and `cargo install --path .`, or download a binary from GitHub
   Releases. Do not reintroduce that machinery without an explicit decision.
-- CI is one workflow that runs fmt, clippy, and tests. Releases are one
-  workflow triggered by pushing a tag.
+- CI is one workflow that runs fmt, clippy, tests, and docs, against both the
+  default build and `retro-master`. Releases are one workflow triggered by
+  pushing a tag.
+- There is one bundle feature, `bundle-assets`, driven by `POKEFETCH_BUNDLE`.
+  The `bundle-gen1` feature and the duplicate `sprites/` tree it read were
+  removed; `assets/` is the single source of artwork. Runtime support for
+  legacy configs that name a game in `sprites.variant` is unrelated and stays.
 - Never push, tag, or publish a release without Michael's fresh confirmation.
 - Later roadmap items are broader PokeAPI front-sprite coverage and a reusable
   rendering/service boundary; overworld directional animation is a separate
