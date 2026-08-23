@@ -16,6 +16,9 @@ bootstrap/bootstrap --apply
 bootstrap/doctor
 ```
 
+The repository's `Validate` GitHub Actions workflow is manual-only. Run it from
+the Actions tab to repeat the full bootstrap and doctor on a fresh hosted Mac.
+
 ```sh
 cargo install --path ~/Developer/pokefetch --root ~/.local --force --locked
 pokefetch greet
