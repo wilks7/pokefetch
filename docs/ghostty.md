@@ -54,11 +54,21 @@ pixel size would break every time the font changed.
 
 ### Animation
 
-Crystal ships animated GIFs and Pokefetch bundles them, but only the first
-frame is rendered. Ghostty does not yet implement Kitty animation frames
-([ghostty#5255](https://github.com/ghostty-org/ghostty/issues/5255)). A
-repaint loop on the shell-startup path is deliberately not an option — see the
-latency constraint in [`AGENTS.md`](../AGENTS.md).
+Crystal ships animated GIFs, and Pokefetch uploads their composited frames with
+the Kitty graphics protocol. Ghostty tip builds containing
+[ghostty#13943](https://github.com/ghostty-org/ghostty/pull/13943) play those
+frames in the terminal after Pokefetch exits; the change is scheduled for
+Ghostty 1.4.0. Older Ghostty versions safely keep displaying the first frame.
+
+```toml
+[sprites]
+game = "crystal"
+variant = "front-animated"
+```
+
+Playback is terminal-driven. Fish does not keep Pokefetch alive, start a
+background writer, or wait through the animation, so the prompt remains usable
+and the greeting path stays bounded.
 
 ## 2. The rotating dock icon
 

@@ -36,9 +36,22 @@ use crate::palette::{Color, SIZE as PALETTE_SIZE};
 use crate::pokemon::Pokemon;
 use crate::system;
 
+/// One PNG frame ready for Kitty graphics transmission.
+///
+/// A still image is represented by a one-element slice. Animations carry one
+/// frame delay per element so the terminal can continue playback after
+/// Pokefetch exits.
+#[derive(Debug)]
+pub struct ImageFrame {
+    /// PNG-encoded RGBA pixels.
+    pub png: Vec<u8>,
+    /// Milliseconds to display this frame before advancing.
+    pub delay_ms: u32,
+}
+
 /// Prints the full greeting to stdout.
 ///
-/// When the terminal cannot draw, `png` is ignored and the same information
+/// When the terminal cannot draw, `frames` is ignored and the same information
 /// lines are printed as plain text — the greeting degrades rather than fails.
 ///
 /// # Errors
@@ -46,7 +59,7 @@ use crate::system;
 /// Returns an error if the line count cannot be laid out, or if writing to
 /// stdout fails (a closed pipe, for instance).
 pub fn print_greeting(
-    png: &[u8],
+    frames: &[ImageFrame],
     pokemon: &Pokemon,
     variant: &str,
     palette: &[Color; PALETTE_SIZE],
@@ -59,7 +72,7 @@ pub fn print_greeting(
 
     if should_render_image(force_kitty) {
         let layout = greeting_layout(lines.len(), display)?;
-        print_with_image(&mut output, png, &lines, palette, display, &layout)?;
+        print_with_image(&mut output, frames, &lines, palette, display, &layout)?;
     } else {
         print_plain(&mut output, &lines, palette, io::stdout().is_terminal())?;
     }
@@ -74,7 +87,7 @@ pub fn print_greeting(
 /// positioned explicitly.
 fn print_with_image(
     output: &mut impl Write,
-    png: &[u8],
+    frames: &[ImageFrame],
     lines: &[String],
     palette: &[Color; PALETTE_SIZE],
     display: &DisplayConfig,
@@ -83,7 +96,7 @@ fn print_with_image(
     for _ in 0..layout.image_offset {
         write!(output, "\r\n")?;
     }
-    kitty::transmit(output, png, display.columns(), display.size)?;
+    kitty::transmit(output, frames, display.columns(), display.size)?;
     if layout.image_offset > 0 {
         write!(output, "\x1b[{}A", layout.image_offset)?;
     }

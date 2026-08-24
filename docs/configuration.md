@@ -71,8 +71,9 @@ pokemon = [249, 250, 251]
 `pokemon` list of Pokedex IDs replaces that range as the random selection pool.
 
 `variant = "front"` selects the normal front sprite. Crystal also exposes
-`"front-animated"`; the current terminal renderer uses its first frame because
-Ghostty does not yet implement Kitty animation frames.
+`"front-animated"`. Terminals with Kitty animation support play every frame;
+older terminals keep displaying the first frame. Ghostty support is available
+in current tip builds and scheduled for version 1.4.0.
 
 `artwork = true` uses high-resolution official artwork instead of game sprites.
 The `--artwork` and `--no-artwork` flags override it for one command.

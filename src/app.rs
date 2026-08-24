@@ -138,21 +138,53 @@ fn show(
     let colors = palette_for(config, store, pokemon)?;
     // Skip the encode entirely when nothing will display it. Rendering and
     // PNG-encoding a sprite is the most expensive step in a plain-text run.
-    let png = if terminal::should_render_image(force_kitty) {
-        let source = load_source(store, pokemon)?;
-        let rendered = image_ops::render_square(&source, config.display.canvas_pixels(), 3);
-        image_ops::encode_png(&rendered)?
+    let frames = if terminal::should_render_image(force_kitty) {
+        render_terminal_frames(config, store, pokemon)?
     } else {
         Vec::new()
     };
     terminal::print_greeting(
-        &png,
+        &frames,
         pokemon,
         &store.label(),
         &colors,
         &config.display,
         force_kitty,
     )
+}
+
+/// Decodes and PNG-encodes either one still or every animation frame.
+fn render_terminal_frames(
+    config: &Config,
+    store: &SpriteStore<'_>,
+    pokemon: &Pokemon,
+) -> Result<Vec<terminal::ImageFrame>> {
+    let size = config.display.canvas_pixels();
+    if store.variant() != "front-animated" {
+        let source = load_source(store, pokemon)?;
+        let rendered = image_ops::render_square(&source, size, 3);
+        return Ok(vec![terminal::ImageFrame {
+            png: image_ops::encode_png(&rendered)?,
+            delay_ms: 0,
+        }]);
+    }
+
+    let path = store.resolve(pokemon.id)?;
+    let source_frames = image_ops::load_gif_frames(&path)
+        .with_context(|| format!("loading {} animation", pokemon.label()))?;
+    let rendered_frames = image_ops::render_animation_square(&source_frames, size, 3)?;
+    rendered_frames
+        .into_iter()
+        .map(|frame| {
+            let (numerator, denominator) = frame.delay().numer_denom_ms();
+            Ok(terminal::ImageFrame {
+                png: image_ops::encode_animation_frame_png(frame.buffer())?,
+                // Kitty treats zero as "unspecified". Rounding upward keeps a
+                // non-zero GIF delay visible even when it is sub-millisecond.
+                delay_ms: numerator.div_ceil(denominator).max(1),
+            })
+        })
+        .collect()
 }
 
 /// Returns the sprite's palette, preferring the one baked in at build time.

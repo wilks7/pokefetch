@@ -125,9 +125,10 @@ Applied imports preserve upstream bytes, validate each image, record its SHA-256
 digest and eight-color palette, prune stale variants, and atomically update
 `assets/manifest.toml`.
 
-Crystal also exposes `front-animated`. Its transparent GIFs are bundled and
-decoded, but the terminal renderer uses the first frame because Ghostty does not
-yet implement Kitty animation frames.
+Crystal also exposes `front-animated`. Its transparent GIFs are bundled,
+decoded into composited frames, and sent as a terminal-driven Kitty animation.
+Ghostty tip builds containing animation support play it; the change is
+scheduled for 1.4.0. Older terminals retain the root frame as a still image.
 
 Configs that put a legacy game name in `sprites.variant`, such as
 `variant = "red-blue"`, remain supported by a runtime compatibility shim. That
