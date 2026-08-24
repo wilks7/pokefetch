@@ -144,19 +144,29 @@ or the text. Pokefetch never adds filler lines to pad one out.
 These Ghostty captures use a 16-point terminal font. Each sprite supplies the
 five-line text palette shown beside it.
 
-The default `size = 8`, `alignment = "center"`, and `gap = 2` gives this
-FireRed/LeafGreen Mewtwo more visual weight while centering the five information
-lines beside it:
+The large preset uses `game = "emerald"`, `size = 8`, `alignment = "center"`,
+and `gap = 2`. Rayquaza gets more visual weight while the five information lines
+are centered beside it:
 
-![An eight-row FireRed and LeafGreen Mewtwo centered beside the Pokefetch system summary](docs/images/layout-mewtwo-firered-leafgreen.png)
+![An eight-row Emerald Rayquaza centered beside the Pokefetch system summary](docs/images/layout-rayquaza-emerald.png)
 
-Other game, size, alignment, and spacing combinations produce distinctly
-different greetings:
+The six species span the first three Pokemon generations; their artwork is still
+selected and labeled by game/version.
 
-| Ruby/Sapphire Gardevoir | Emerald Rayquaza |
+| Ruby/Sapphire Groudon | Emerald Kyogre |
 |---|---|
-| `game = "ruby-sapphire"`<br>`size = 4` · `alignment = "top"` · `gap = 1` | `game = "emerald"`<br>`size = 6` · `alignment = "center"` · `gap = 3` |
-| ![A compact Ruby and Sapphire Gardevoir greeting](docs/images/layout-gardevoir-ruby-sapphire.png) | ![A six-row Emerald Rayquaza greeting with a wider gap](docs/images/layout-rayquaza-emerald.png) |
+| `size = 7` · `alignment = "top"` · `gap = 1` | `size = 7` · `alignment = "center"` · `gap = 4` |
+| ![A seven-row Ruby and Sapphire Groudon greeting with top alignment and a narrow gap](docs/images/layout-groudon-ruby-sapphire.png) | ![A seven-row Emerald Kyogre greeting with centered text and a wide gap](docs/images/layout-kyogre-emerald.png) |
+
+| Gold Ho-Oh | Silver Lugia |
+|---|---|
+| `size = 5` · `alignment = "top"` · `gap = 2` | `size = 4` · `alignment = "top"` · `gap = 3` |
+| ![A five-row Gold Ho-Oh greeting](docs/images/layout-ho-oh-gold.png) | ![A compact four-row Silver Lugia greeting](docs/images/layout-lugia-silver.png) |
+
+The final compact preset uses `game = "firered-leafgreen"`, `size = 3`,
+`alignment = "center"`, and `gap = 1`, centering Mewtwo against the taller text:
+
+![A compact three-row FireRed and LeafGreen Mewtwo centered beside the Pokefetch system summary](docs/images/layout-mewtwo-firered-leafgreen.png)
 
 ### Where files go
 
