@@ -139,6 +139,23 @@ through 32 rows.
 `alignment = "center"` vertically centers whichever side is shorter — the image
 or the text. Pokefetch never adds filler lines to pad one out.
 
+### Layout examples
+
+These Ghostty captures use the same Pikachu and 16-point terminal font so the
+configuration differences are easy to compare.
+
+The default `size = 8`, `alignment = "center"`, and `gap = 2` gives the sprite
+more visual weight while centering the five information lines beside it:
+
+![An eight-row Pikachu centered beside the Pokefetch system summary](docs/images/layout-size-8-center.png)
+
+At `size = 3` and `gap = 1`, alignment decides whether the shorter sprite starts
+with the text or is centered against it:
+
+| `alignment = "top"` | `alignment = "center"` |
+|---|---|
+| ![A three-row Pikachu top-aligned with the system summary](docs/images/layout-size-3-top.png) | ![A three-row Pikachu centered beside the system summary](docs/images/layout-size-3-center.png) |
+
 ### Where files go
 
 | Path | Contents |
