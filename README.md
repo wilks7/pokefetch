@@ -141,20 +141,22 @@ or the text. Pokefetch never adds filler lines to pad one out.
 
 ### Layout examples
 
-These Ghostty captures use the same Pikachu and 16-point terminal font so the
-configuration differences are easy to compare.
+These Ghostty captures use a 16-point terminal font. Each sprite supplies the
+five-line text palette shown beside it.
 
-The default `size = 8`, `alignment = "center"`, and `gap = 2` gives the sprite
-more visual weight while centering the five information lines beside it:
+The default `size = 8`, `alignment = "center"`, and `gap = 2` gives this
+FireRed/LeafGreen Mewtwo more visual weight while centering the five information
+lines beside it:
 
-![An eight-row Pikachu centered beside the Pokefetch system summary](docs/images/layout-size-8-center.png)
+![An eight-row FireRed and LeafGreen Mewtwo centered beside the Pokefetch system summary](docs/images/layout-mewtwo-firered-leafgreen.png)
 
-At `size = 3` and `gap = 1`, alignment decides whether the shorter sprite starts
-with the text or is centered against it:
+Other game, size, alignment, and spacing combinations produce distinctly
+different greetings:
 
-| `alignment = "top"` | `alignment = "center"` |
+| Ruby/Sapphire Gardevoir | Emerald Rayquaza |
 |---|---|
-| ![A three-row Pikachu top-aligned with the system summary](docs/images/layout-size-3-top.png) | ![A three-row Pikachu centered beside the system summary](docs/images/layout-size-3-center.png) |
+| `game = "ruby-sapphire"`<br>`size = 4` · `alignment = "top"` · `gap = 1` | `game = "emerald"`<br>`size = 6` · `alignment = "center"` · `gap = 3` |
+| ![A compact Ruby and Sapphire Gardevoir greeting](docs/images/layout-gardevoir-ruby-sapphire.png) | ![A six-row Emerald Rayquaza greeting with a wider gap](docs/images/layout-rayquaza-emerald.png) |
 
 ### Where files go
 
